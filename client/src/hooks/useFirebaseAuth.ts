@@ -11,28 +11,7 @@ export function useFirebaseAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if Firebase is properly configured
-  const isDemoMode = import.meta.env.VITE_FIREBASE_PROJECT_ID === 'demo-faae-projetos';
-
   useEffect(() => {
-    // If in demo mode, set a mock user
-    if (isDemoMode) {
-      const demoUser: FirebaseUser = {
-        id: 'demo-user-123',
-        email: 'admin@faaeprojetos.com.br',
-        firstName: 'Admin',
-        lastName: 'FAAE',
-        profileImageUrl: '',
-        role: 'admin',
-        allowedSections: [...DEFAULT_ALLOWED_SECTIONS, 'users'],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setUser(demoUser);
-      setIsLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChange(async (firebaseUser: User | null) => {
       try {
         setFirebaseUser(firebaseUser);
@@ -87,11 +66,6 @@ export function useFirebaseAuth() {
   }, []);
 
   const signIn = async () => {
-    if (isDemoMode) {
-      console.warn('Demo mode: Firebase not configured');
-      return;
-    }
-    
     try {
       setError(null);
       await signInWithGoogle();
@@ -102,11 +76,6 @@ export function useFirebaseAuth() {
   };
 
   const signInWithEmailPassword = async (email: string, password: string) => {
-    if (isDemoMode) {
-      console.warn('Demo mode: Firebase not configured');
-      return;
-    }
-
     try {
       setError(null);
       await signInWithEmail(email, password);
@@ -117,12 +86,6 @@ export function useFirebaseAuth() {
   };
 
   const signOutUser = async () => {
-    if (isDemoMode) {
-      // In demo mode, just clear the user
-      setUser(null);
-      return;
-    }
-    
     try {
       setError(null);
       await logOut();
@@ -137,15 +100,6 @@ export function useFirebaseAuth() {
       role === 'admin'
         ? [...DEFAULT_ALLOWED_SECTIONS, 'users']
         : [...DEFAULT_ALLOWED_SECTIONS];
-
-    if (isDemoMode) {
-      console.warn('Demo mode: Role update simulated');
-      if (user && user.id === userId) {
-        setUser({ ...user, role, allowedSections, updatedAt: new Date() });
-      }
-      return true;
-    }
-
     try {
       await updateDoc(doc(db, 'users', userId), {
         role,

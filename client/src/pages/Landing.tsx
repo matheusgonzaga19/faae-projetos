@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import UserRegistration from "@/components/Auth/UserRegistration";
 import { signInWithGoogle } from "@/lib/firebase";
-import { createTestAdminUser, TEST_ADMIN_USER } from "@/lib/testUsers";
 import { useToast } from "@/hooks/use-toast";
 import FAAELogo from "@/components/FAAELogo";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,25 +41,6 @@ export default function Landing() {
         description: error.message,
         variant: "destructive",
       });
-    }
-  };
-
-  const handleCreateTestAdmin = async () => {
-    try {
-      setIsSigningIn(true);
-      await createTestAdminUser();
-      toast({
-        title: "Usuário administrador criado!",
-        description: `Use: ${TEST_ADMIN_USER.email} / ${TEST_ADMIN_USER.password}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro ao criar usuário",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSigningIn(false);
     }
   };
 
@@ -140,25 +120,6 @@ export default function Landing() {
                     {isSigningIn ? 'Conectando...' : 'Entrar com Google'}
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
-                  <Button 
-                    size="lg"
-                    variant="outline"
-                    onClick={handleCreateTestAdmin}
-                    disabled={isSigningIn}
-                    className="border-white text-white hover:bg-white hover:text-blue-600"
-                  >
-                    {isSigningIn ? 'Criando...' : 'Criar Admin Teste'}
-                  </Button>
-                </div>
-
-                {/* Test credentials info */}
-                <div className="bg-blue-800/30 backdrop-blur-sm border border-blue-300/20 rounded-lg p-4 mb-8">
-                  <p className="text-blue-100 text-sm mb-2">
-                    📧 Admin de Teste: <code className="bg-blue-900/50 px-2 py-1 rounded">{TEST_ADMIN_USER.email}</code>
-                  </p>
-                  <p className="text-blue-100 text-sm">
-                    🔑 Senha: <code className="bg-blue-900/50 px-2 py-1 rounded">{TEST_ADMIN_USER.password}</code>
-                  </p>
                 </div>
                 
                 <div className="flex flex-wrap gap-4">
