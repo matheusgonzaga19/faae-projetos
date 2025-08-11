@@ -1,9 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { DEFAULT_ALLOWED_SECTIONS, Section } from '@/types/auth';
 
 // Firebase configuration - replace with your actual Firebase config
 const firebaseConfig = {
@@ -70,12 +71,18 @@ export const registerUser = async (email: string, password: string, firstName: s
     });
     
     // Create user document in Firestore
+    const allowedSections: Section[] =
+      role === 'admin'
+        ? [...DEFAULT_ALLOWED_SECTIONS, 'users']
+        : [...DEFAULT_ALLOWED_SECTIONS];
+
     const userData = {
       id: user.uid,
       email: user.email,
       firstName,
       lastName,
       role,
+      allowedSections,
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),

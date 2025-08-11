@@ -17,12 +17,13 @@ interface NavigationProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
   userRole: string;
+  allowedSections?: string[];
 }
 
-export default function Navigation({ activeSection, onSectionChange, userRole }: NavigationProps) {
+export default function Navigation({ activeSection, onSectionChange, userRole, allowedSections }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const navItems = [
+  let navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'kanban', label: 'Kanban', icon: Kanban },
     { id: 'projects', label: 'Projetos', icon: Building },
@@ -30,6 +31,10 @@ export default function Navigation({ activeSection, onSectionChange, userRole }:
     { id: 'files', label: 'Arquivos', icon: Folder },
     { id: 'chat', label: 'IA Chat', icon: Bot },
   ];
+
+  if (userRole !== 'admin' && allowedSections) {
+    navItems = navItems.filter(item => allowedSections.includes(item.id));
+  }
 
   // Add users tab for admins
   if (userRole === 'admin') {

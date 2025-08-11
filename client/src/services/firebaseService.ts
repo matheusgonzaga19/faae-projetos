@@ -18,6 +18,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { DEFAULT_ALLOWED_SECTIONS } from '@/types/auth';
 
 // Helper functions
 const toFirestoreData = (data: any) => {
@@ -50,6 +51,7 @@ const demoUsers = [
     lastName: 'FAAE',
     profileImageUrl: '',
     role: 'admin',
+    allowedSections: [...DEFAULT_ALLOWED_SECTIONS, 'users'],
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -61,6 +63,7 @@ const demoUsers = [
     lastName: 'Silva',
     profileImageUrl: '',
     role: 'collaborator',
+    allowedSections: [...DEFAULT_ALLOWED_SECTIONS],
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -790,12 +793,16 @@ export const firebaseService = {
 
   async createUser(data: any) {
     const now = new Date();
-    const userData = { 
-      ...data, 
+    const defaultSections = data.role === 'admin'
+      ? [...DEFAULT_ALLOWED_SECTIONS, 'users']
+      : [...DEFAULT_ALLOWED_SECTIONS];
+    const userData = {
+      ...data,
       role: data.role || 'collaborator', // Default role
+      allowedSections: data.allowedSections || defaultSections,
       isActive: true,
-      createdAt: now, 
-      updatedAt: now 
+      createdAt: now,
+      updatedAt: now
     };
     const docRef = doc(db, 'users', data.id);
     await setDoc(docRef, toFirestoreData(userData));
@@ -820,13 +827,17 @@ export const firebaseService = {
     
     if (!docSnap.exists()) {
       // Create new user with default role
-      const userData = { 
-        ...data, 
+      const userData = {
+        ...data,
         id,
         role: data.role || 'collaborator',
+        allowedSections:
+          data.role === 'admin'
+            ? [...DEFAULT_ALLOWED_SECTIONS, 'users']
+            : data.allowedSections || [...DEFAULT_ALLOWED_SECTIONS],
         isActive: true,
-        createdAt: now, 
-        updatedAt: now 
+        createdAt: now,
+        updatedAt: now
       };
       await setDoc(docRef, toFirestoreData(userData));
       return userData;

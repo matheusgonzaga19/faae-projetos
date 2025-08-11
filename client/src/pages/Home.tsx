@@ -37,6 +37,15 @@ export default function Home() {
     }
   }, [isAuthenticated, isLoading]);
 
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      if (!user.allowedSections?.includes(activeSection)) {
+        const fallback = user.allowedSections?.[0] as Section | undefined;
+        if (fallback) setActiveSection(fallback);
+      }
+    }
+  }, [user, activeSection]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -73,19 +82,20 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      <Header 
-        activeSection={activeSection} 
-        onSectionChange={setActiveSection} 
+      <Header
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
       />
       
       <main className="transition-all duration-300 pb-16 lg:pb-0 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)]">
         {renderActiveSection()}
       </main>
 
-      <MobileBottomNav 
+      <MobileBottomNav
         activeSection={activeSection}
         onSectionChange={(section) => setActiveSection(section as Section)}
         userRole={user.role}
+        allowedSections={user.allowedSections}
       />
     </div>
   );

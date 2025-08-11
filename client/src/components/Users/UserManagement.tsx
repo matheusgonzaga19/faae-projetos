@@ -8,15 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { USER_ROLES, type FirebaseUser, type UserRole } from "@/types/auth";
+import { USER_ROLES, type FirebaseUser, type UserRole, DEFAULT_ALLOWED_SECTIONS } from "@/types/auth";
 
 export default function UserManagement() {
   const { user: currentUser, isAuthenticated, isLoading: authLoading, updateUserRole } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+
+  const sectionOptions = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'kanban', label: 'Kanban' },
+    { id: 'projects', label: 'Projetos' },
+    { id: 'calendar', label: 'Calendário' },
+    { id: 'files', label: 'Arquivos' },
+    { id: 'chat', label: 'IA Chat' },
+  ];
 
   // Redirect to home if not authenticated or not admin
   useEffect(() => {
@@ -53,6 +63,24 @@ export default function UserManagement() {
         title: "Erro ao atualizar cargo",
         description: error?.message || "Erro desconhecido",
         variant: "destructive",
+      });
+    }
+  };
+
+  const handleSectionChange = async (userId: string, sectionId: string, checked: boolean) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      const current = user.allowedSections || [...DEFAULT_ALLOWED_SECTIONS];
+      const updated = checked ? [...current, sectionId] : current.filter(s => s !== sectionId);
+      await firebaseService.updateUser(userId, { allowedSections: updated });
+      await refetch();
+      toast({ title: 'Permissões atualizadas', description: 'Acesso do usuário atualizado com sucesso.' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar permissões',
+        description: error?.message || 'Erro desconhecido',
+        variant: 'destructive',
       });
     }
   };
@@ -192,19 +220,39 @@ export default function UserManagement() {
                     {user.createdAt ? formatDistanceToNow(user.createdAt, { addSuffix: true, locale: ptBR }) : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Select
-                      value={user.role}
-                      onValueChange={(role: UserRole) => handleRoleChange(user.id, role)}
-                      disabled={user.id === currentUser?.id}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Administrador</SelectItem>
-                        <SelectItem value="collaborator">Colaborador</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex justify-end gap-2">
+                      <Select
+                        value={user.role}
+                        onValueChange={(role: UserRole) => handleRoleChange(user.id, role)}
+                        disabled={user.id === currentUser?.id}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                          <SelectItem value="collaborator">Colaborador</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {user.role !== 'admin' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">Permissões</Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {sectionOptions.map(section => (
+                              <DropdownMenuCheckboxItem
+                                key={section.id}
+                                checked={user.allowedSections?.includes(section.id)}
+                                onCheckedChange={(checked) => handleSectionChange(user.id, section.id, !!checked)}
+                              >
+                                {section.label}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
