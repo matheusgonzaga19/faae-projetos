@@ -1,0 +1,6 @@
+{
+  "name": "FAAE Projetos Task Manager",
+  "description": "A streamlined task management platform for FAAE Projetos, allowing collaborators to submit daily tasks and enabling administrators to track progress, generate reports, and use an AI-powered search to find task information quickly.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

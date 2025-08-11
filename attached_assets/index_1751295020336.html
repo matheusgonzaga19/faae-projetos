@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FAAE Projetos Task Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Poppins', sans-serif;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.1.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.1.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.7.0",
+    "chart.js": "https://esm.sh/chart.js@4.4.2",
+    "react-chartjs-2": "https://esm.sh/react-chartjs-2@5.2.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { GoogleGenAI } from "@google/genai";
+      import { Doughnut, Bar } from 'react-chartjs-2';
+      import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+
+      // --- SETUP ---
+      ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+      // --- FROM types.ts ---
+      const UserRole = {
+        ADMIN: 'Administrador',
+        COLLABORATOR: 'Colaborador',
+      };
+
+      const Priority = {
+        BAIXA: 'Baixa',
+        MEDIA: 'Média',
+        ALTA: 'Alta',
+      };
+
+      const Status = {
+        ABERTA: 'Aberta',
+        EM_ANDAMENTO: 'Em andamento',
+        CONCLUIDA: 'Concluída',
+      };
+
+      const Page = {
+        DASHBOARD: 'Dashboard',
+        CHAT: 'Chat-Tarefas',
+        USERS: 'Usuários',
+      };
+
+      // --- FROM constants.ts ---
+      const USERS = [
+        { id: 1, name: 'Líder Admin', role: UserRole.ADMIN, avatar: 'https://i.pravatar.cc/48?u=1' },
+        { id: 2, name: 'Ana Silva', role: UserRole.COLLABORATOR, avatar: 'https://i.pravatar.cc/48?u=2' },
+        { id: 3, name: 'Bruno Costa', role: UserRole.COLLABORATOR, avatar: 'https://i.pravatar.cc/48?u=3' },
+        { id: 4, name: 'Carlos Dias', role: UserRole.COLLABORATOR, avatar: 'https://i.pravatar.cc/48?u=4' },
+        { id: 5, name: 'Daniela Faria', role: UserRole.COLLABORATOR, avatar: 'https://i.pravatar.cc/48?u=5' },
+        { id: 6, name: 'Eduarda Lima', role: UserRole.COLLABORATOR, avatar: 'https://i.pravatar.cc/48?u=6' },
+      ];
+
+      const now = new Date();
+      const historyEntry = (name) => ({ date: now.toISOString(), user: name, changes: 'Tarefa criada.' });
+
+      const TASKS = [
+        {
+          id: 1, userId: 2, title: 'Revisão dos blueprints do Edifício Central',
+          description: 'Verificar todas as plantas baixas e elevações para conformidade com o código de construção municipal. Foco na acessibilidade.',
+          priority: Priority.ALTA, startDate: '2024-07-15', dueDate: '2024-07-25', status: Status.CONCLUIDA, project: 'Edifício Central',
+          files: [{name: 'plantas_rev01.pdf', size: 12582912}], createdAt: '2024-07-14T10:00:00.000Z', completedAt: '2024-07-24T18:00:00.000Z',
+          history: [historyEntry('Ana Silva'), { date: '2024-07-24T18:00:00.000Z', user: 'Ana Silva', changes: 'Status alterado para Concluída.' }],
+        },
+        {
+          id: 2, userId: 3, title: 'Modelagem 3D da fachada do Shopping Norte',
+          description: 'Criar modelo 3D detalhado da fachada oeste, incluindo materiais e texturas conforme especificado pelo cliente.',
+          priority: Priority.MEDIA, startDate: '2024-07-18', dueDate: '2024-08-05', status: Status.EM_ANDAMENTO, project: 'Shopping Norte',
+          createdAt: '2024-07-18T09:00:00.000Z', completedAt: null, history: [historyEntry('Bruno Costa')],
+        },
+        {
+          id: 3, userId: 4, title: 'Orçamento para o projeto residencial Vila Madalena',
+          description: 'Levantar custos de materiais e mão de obra para a construção da residência. Contatar 3 fornecedores para cada item.',
+          priority: Priority.MEDIA, startDate: '2024-07-20', dueDate: '2024-07-30', status: Status.ABERTA, project: 'Residencial Vila Madalena',
+          createdAt: '2024-07-20T11:00:00.000Z', completedAt: null, history: [historyEntry('Carlos Dias')],
+        },
+        {
+          id: 4, userId: 2, title: 'Preparar documentação para licitação da prefeitura',
+          description: 'Compilar todos os documentos técnicos e certidões necessários para a licitação da nova praça pública.',
+          priority: Priority.ALTA, startDate: '2024-07-22', dueDate: '2024-08-10', status: Status.EM_ANDAMENTO, project: 'Praça Pública Central',
+          files: [{name: 'edital_licitacao.pdf', size: 8388608}, {name: 'certidoes.zip', size: 20971520}],
+          createdAt: '2024-07-22T08:30:00.000Z', completedAt: null, history: [historyEntry('Ana Silva')],
+        },
+         {
+          id: 5, userId: 5, title: 'Desenho de interiores para o escritório da InovaTech',
+          description: 'Propor layout, mobiliário e paleta de cores para o novo escritório da InovaTech, com foco em espaços colaborativos.',
+          priority: Priority.MEDIA, startDate: '2024-07-25', dueDate: '2024-08-15', status: Status.ABERTA, project: 'Escritório InovaTech',
+          createdAt: '2024-07-25T14:00:00.000Z', completedAt: null, history: [historyEntry('Daniela Faria')],
+        },
+        {
+          id: 6, userId: 6, title: 'Estudo de viabilidade para o Condomínio Green Valley',
+          description: 'Analisar o terreno, legislação local e potencial de mercado para o novo condomínio residencial.',
+          priority: Priority.ALTA, startDate: '2024-08-01', dueDate: '2024-08-20', status: Status.ABERTA, project: 'Condomínio Green Valley',
+          createdAt: '2024-08-01T10:00:00.000Z', completedAt: null, history: [historyEntry('Eduarda Lima')],
+        },
+        {
+          id: 7, userId: 3, title: 'Renderizações fotorrealistas do lobby do Hotel Marítimo',
+          description: 'Produzir 5 renderizações de alta qualidade do projeto de interiores do lobby.',
+          priority: Priority.MEDIA, startDate: '2024-08-02', dueDate: '2024-08-12', status: Status.EM_ANDAMENTO, project: 'Hotel Marítimo',
+          createdAt: '2024-08-02T09:30:00.000Z', completedAt: null, history: [historyEntry('Bruno Costa')],
+        },
+        {
+          id: 8, userId: 4, title: 'Compatibilização de projetos do Hospital Municipal',
+          description: 'Verificar interferências entre os projetos de arquitetura, estrutura e instalações (elétrica, hidráulica).',
+          priority: Priority.ALTA, startDate: '2024-08-05', dueDate: '2024-08-25', status: Status.ABERTA, project: 'Hospital Municipal',
+          createdAt: '2024-08-05T09:00:00.000Z', completedAt: null, history: [historyEntry('Carlos Dias')],
+        },
+        {
+          id: 9, userId: 5, title: 'Seleção de acabamentos para a loja Conceito',
+          description: 'Montar moodboard e selecionar pisos, revestimentos e metais para a nova loja no Jardins.',
+          priority: Priority.BAIXA, startDate: '2024-08-07', dueDate: '2024-08-18', status: Status.ABERTA, project: 'Loja Conceito',
+          createdAt: '2024-08-07T15:00:00.000Z', completedAt: null, history: [historyEntry('Daniela Faria')],
+        },
+        {
+          id: 10, userId: 2, title: 'Ajustes no projeto executivo do Edifício Central',
+          description: 'Incorporar as últimas solicitações do cliente no projeto executivo e atualizar as pranchas.',
+          priority: Priority.MEDIA, startDate: '2024-08-11', dueDate: '2024-08-16', status: Status.ABERTA, project: 'Edifício Central',
+          createdAt: '2024-08-11T11:00:00.000Z', completedAt: null, history: [historyEntry('Ana Silva')],
+        },
+        {
+          id: 11, userId: 6, title: 'Paisagismo para a área comum do Condomínio Green Valley',
+          description: 'Projetar as áreas verdes, piscina e espaços de convivência do condomínio.',
+          priority: Priority.MEDIA, startDate: '2024-08-21', dueDate: '2024-09-10', status: Status.ABERTA, project: 'Condomínio Green Valley',
+          createdAt: '2024-08-21T09:00:00.000Z', completedAt: null, history: [historyEntry('Eduarda Lima')],
+        },
+        {
+          id: 12, userId: 3, title: 'Correção de maquete eletrônica do Shopping Norte',
+          description: 'Ajustar iluminação e materiais na maquete 3D conforme feedback da reunião.',
+          priority: Priority.BAIXA, startDate: '2024-08-06', dueDate: '2024-08-09', status: Status.CONCLUIDA, project: 'Shopping Norte',
+          createdAt: '2024-08-06T10:00:00.000Z', completedAt: '2024-08-08T16:00:00.000Z',
+          history: [historyEntry('Bruno Costa'), { date: '2024-08-08T16:00:00.000Z', user: 'Bruno Costa', changes: 'Status alterado para Concluída.' }],
+        },
+        {
+          id: 13, userId: 4, title: 'Memorial descritivo - Residencial Vila Madalena',
+          description: 'Redigir o memorial descritivo completo da obra, especificando todos os materiais e técnicas construtivas.',
+          priority: Priority.MEDIA, startDate: '2024-08-01', dueDate: '2024-08-14', status: Status.EM_ANDAMENTO, project: 'Residencial Vila Madalena',
+          createdAt: '2024-08-01T14:00:00.000Z', completedAt: null, history: [historyEntry('Carlos Dias')],
+        },
+        {
+          id: 14, userId: 5, title: 'Pesquisa de mobiliário corporativo - InovaTech',
+          description: 'Pesquisar e orçar estações de trabalho, cadeiras ergonômicas e móveis para áreas de descompressão.',
+          priority: Priority.BAIXA, startDate: '2024-08-16', dueDate: '2024-08-26', status: Status.ABERTA, project: 'Escritório InovaTech',
+          createdAt: '2024-08-16T10:30:00.000Z', completedAt: null, history: [historyEntry('Daniela Faria')],
+        },
+        {
+          id: 15, userId: 6, title: 'Detalhamento das esquadrias do Hospital Municipal',
+          description: 'Desenhar todos os detalhes de portas e janelas, incluindo especificações técnicas.',
+          priority: Priority.ALTA, startDate: '2024-08-26', dueDate: '2024-09-15', status: Status.ABERTA, project: 'Hospital Municipal',
+          createdAt: '2024-08-26T09:00:00.000Z', completedAt: null, history: [historyEntry('Eduarda Lima')],
+        },
+      ];
+      
+      // --- FROM services/geminiService.ts ---
+      const findTaskWithAI = async (query, tasks, users) => {
+        // This function will not work when run from a file:// URL without a configured API key.
+        // It's included for completeness of the mockup.
+        try {
+          if (!process.env.API_KEY) {
+            throw new Error("A chave da API do Google GenAI não está configurada. O Chat-Tarefas está desabilitado.");
+          }
+
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const model = "gemini-2.5-flash-preview-04-17";
+
+          const systemInstruction = `
+          Você é um assistente de IA para a empresa de arquitetura FAAE Projetos. Sua tarefa é encontrar tarefas específicas de uma lista fornecida, com base na consulta do usuário.
+          Analise a consulta do usuário e identifique qual(is) tarefa(s) da lista são as mais relevantes. A lista de tarefas é fornecida abaixo em formato JSON.
+
+          Responda APENAS com o objeto JSON da tarefa correspondente ou um array de objetos JSON se várias tarefas forem relevantes. Se nenhuma tarefa corresponder, retorne um array vazio [].
+          Não adicione texto de conversação, explicações ou markdown. A sua resposta deve ser um JSON válido e puro. O objeto de resposta deve corresponder à estrutura do objeto da tarefa original.
+          `;
+
+          const prompt = `
+          Lista de Tarefas (JSON):
+          ${JSON.stringify(tasks, null, 2)}
+
+          Consulta do Usuário:
+          "${query}"
+          `;
+
+          const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+              systemInstruction: systemInstruction,
+              responseMimeType: "application/json",
+            },
+          });
+
+          let jsonStr = response.text.trim();
+          const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+          const match = jsonStr.match(fenceRegex);
+          if (match && match[2]) {
+            jsonStr = match[2].trim();
+          }
+
+          const parsedData = JSON.parse(jsonStr);
+
+          if (Array.isArray(parsedData)) {
+              return parsedData;
+          } else if (typeof parsedData === 'object' && parsedData !== null) {
+              return [parsedData];
+          } else {
+              return [];
+          }
+        } catch (error) {
+          console.error("Erro ao chamar a API Gemini ou ao processar a resposta:", error);
+          const errorMessage = error instanceof Error ? error.message : "Não foi possível encontrar a tarefa. Verifique a consulta ou tente novamente mais tarde.";
+          throw new Error(errorMessage);
+        }
+      };
+
+      // --- ICONS ---
+      const FileIcon = (props) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...props },
+          React.createElement('path', { d: "M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" }),
+          React.createElement('polyline', { points: "14 2 14 8 20 8" })
+        )
+      );
+
+      const PriorityIcon = ({ priority }) => {
+        const getPriorityDetails = () => {
+          switch (priority) {
+            case Priority.ALTA: return { color: 'text-red-500', path: 'M12 19V5M5 12l7-7 7 7' };
+            case Priority.MEDIA: return { color: 'text-yellow-500', path: 'M5 12h14' };
+            case Priority.BAIXA: return { color: 'text-green-500', path: 'M12 5v14M19 12l-7 7-7-7' };
+            default: return { color: 'text-gray-400', path: 'M5 12h14' };
+          }
+        };
+        const { color, path } = getPriorityDetails();
+        return React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: `w-5 h-5 ${color}`, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+          React.createElement('path', { d: path })
+        );
+      };
+      
+      const HelpIcon = (props) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...props },
+          React.createElement('circle', { cx: "12", cy: "12", r: "10" }),
+          React.createElement('path', { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }),
+          React.createElement('line', { x1: "12", y1: "17", x2: "12.01", y2: "17" })
+        )
+      );
+      
+      const CloseIcon = (props) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...props },
+          React.createElement('line', { x1: "18", y1: "6", x2: "6", y2: "18" }),
+          React.createElement('line', { x1: "6", y1: "6", x2: "18", y2: "18" })
+        )
+      );
+
+      const EditIcon = (props) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...props },
+          React.createElement('path', { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }),
+          React.createElement('path', { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
+        )
+      );
+      
+      const HistoryIcon = (props) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...props },
+          React.createElement('path', { d: "M12 8v4l3 3" }),
+          React.createElement('path', { d: "M22 12A10 10 0 1 1 12 2a10 10 0 0 1 10 10z" }),
+          React.createElement('path', { d: "M22 4L12 14.01l-3-3" })
+        )
+      );
+
+      // --- UI COMPONENTS ---
+      const Spinner = () => (
+        React.createElement('div', { className: "animate-spin rounded-full h-5 w-5 border-b-2 border-current", role: "status" },
+          React.createElement('span', { className: "sr-only" }, "Loading...")
+        )
+      );
+
+      const Button = ({ children, variant = 'primary', size = 'md', fullWidth = false, className = '', ...props }) => {
+        const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+        const variantClasses = {
+          primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
+          secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400',
+        };
+        const sizeClasses = { sm: 'px-2.5 py-1.5 text-xs', md: 'px-4 py-2 text-sm', lg: 'px-6 py-3 text-base' };
+        const widthClass = fullWidth ? 'w-full' : '';
+        const combinedClasses = [baseClasses, variantClasses[variant], sizeClasses[size], widthClass, className].join(' ');
+        return React.createElement('button', { className: combinedClasses, ...props }, children);
+      };
+
+      const Input = ({ label, id, ...props }) => {
+        const inputId = id || props.name;
+        return React.createElement('div', null,
+          React.createElement('label', { htmlFor: inputId, className: "block text-sm font-medium text-gray-700 mb-1" }, label),
+          React.createElement('input', { id: inputId, className: "block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm", ...props })
+        );
+      };
+
+      const Select = ({ label, id, children, ...props }) => {
+        const selectId = id || props.name;
+        return React.createElement('div', null,
+          React.createElement('label', { htmlFor: selectId, className: "block text-sm font-medium text-gray-700 mb-1" }, label),
+          React.createElement('select', { id: selectId, className: "block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md", ...props }, children)
+        );
+      };
+
+      // --- MAIN COMPONENTS ---
+      const TaskCard = ({ task, user, isCompact = false, onClick }) => {
+        const getStatusClass = (status) => {
+          switch (status) {
+            case Status.ABERTA: return 'bg-blue-100 text-blue-800';
+            case Status.EM_ANDAMENTO: return 'bg-yellow-100 text-yellow-800';
+            case Status.CONCLUIDA: return 'bg-green-100 text-green-800';
+            default: return 'bg-gray-100 text-gray-800';
+          }
+        };
+
+        const cardClasses = "bg-white shadow-md rounded-lg p-5 transition-shadow duration-300 group";
+        const clickableClasses = onClick ? "hover:shadow-lg hover:cursor-pointer" : "";
+
+        if (isCompact) {
+          return React.createElement('div', { className: "bg-white rounded-lg p-3 w-full border" },
+            React.createElement('h4', { className: "font-bold text-gray-800" }, task.title),
+            React.createElement('div', { className: "text-xs text-gray-500 mt-2 space-y-1.5" },
+              React.createElement('p', null, React.createElement('strong', null, "Projeto: "), task.project),
+              React.createElement('div', { className: "flex items-center gap-2" },
+                user && React.createElement('img', { src: user.avatar || `https://i.pravatar.cc/48?u=${user.id}`, alt: user.name, className: "w-5 h-5 rounded-full" }),
+                React.createElement('span', { className: "font-medium text-gray-700" }, user?.name || 'N/A')
+              ),
+              React.createElement('p', null, React.createElement('strong', null, "Status: "), task.status),
+              React.createElement('p', null, React.createElement('strong', null, "Entrega: "), new Date(task.dueDate).toLocaleDateString())
+            )
+          );
+        }
+
+        return React.createElement('div', { className: `${cardClasses} ${clickableClasses}`, onClick: onClick },
+          React.createElement('div', { className: "flex justify-between items-start" },
+            React.createElement('div', null,
+              React.createElement('h3', { className: "text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors" }, task.title),
+              React.createElement('p', { className: "text-sm text-gray-600" }, "Projeto: ", task.project)
+            ),
+            React.createElement('div', { className: `text-xs font-semibold px-2.5 py-1 rounded-full ${getStatusClass(task.status)}` }, task.status)
+          ),
+          React.createElement('p', { className: "text-gray-700 my-3 text-sm" }, task.description),
+          task.files && task.files.length > 0 && React.createElement('div', { className: "my-3 border-t border-b py-2" },
+            React.createElement('h5', { className: "text-xs font-bold text-gray-500 mb-2" }, "ARQUIVOS ANEXADOS"),
+            React.createElement('div', { className: "space-y-1" },
+              task.files.map((file, index) => React.createElement('div', { key: index, className: "flex items-center text-sm text-gray-600" },
+                React.createElement(FileIcon, { className: "w-4 h-4 mr-2 text-gray-400" }),
+                React.createElement('span', null, file.name),
+                React.createElement('span', { className: "ml-2 text-xs text-gray-400" }, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+              ))
+            )
+          ),
+          React.createElement('div', { className: "flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm text-gray-500 mt-4" },
+            React.createElement('div', { className: "flex items-center mb-2 sm:mb-0" },
+              React.createElement(PriorityIcon, { priority: task.priority }),
+              React.createElement('span', { className: "ml-2" }, "Prioridade ", task.priority)
+            ),
+            user && React.createElement('div', { className: "flex items-center font-medium text-gray-700 mb-2 sm:mb-0" },
+              React.createElement('img', { src: user.avatar || `https://i.pravatar.cc/48?u=${user.id}`, alt: user.name, className: "w-6 h-6 rounded-full mr-2" }),
+              React.createElement('span', null, user.name)
+            ),
+            React.createElement('div', { className: "flex flex-col sm:text-right" },
+              React.createElement('span', null, "Início: ", new Date(task.startDate).toLocaleDateString()),
+              React.createElement('span', { className: "font-semibold" }, "Entrega: ", new Date(task.dueDate).toLocaleDateString())
+            )
+          )
+        );
+      };
+
+      const TaskDetailModal = ({ isOpen, onClose, onUpdate, task, users, currentUser }) => {
+        const [activeTab, setActiveTab] = useState('details');
+        const [isEditing, setIsEditing] = useState(false);
+        const [editedTask, setEditedTask] = useState(task);
+
+        useEffect(() => {
+          setEditedTask(task);
+          setIsEditing(false);
+        }, [task]);
+
+        const handleInputChange = (e) => {
+          const { name, value } = e.target;
+          const finalValue = name === 'userId' ? parseInt(value, 10) : value;
+          setEditedTask(prev => ({ ...prev, [name]: finalValue }));
+        };
+
+        const handleSave = () => {
+          onUpdate(editedTask);
+          setIsEditing(false);
+        };
+
+        const getTaskAge = (createdAt) => {
+          const diff = new Date().getTime() - new Date(createdAt).getTime();
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          if (days === 0) return "Hoje";
+          if (days === 1) return "1 dia";
+          return `${days} dias`;
+        }
+
+        const getStatusClass = (status) => {
+          switch (status) {
+            case Status.ABERTA: return 'bg-blue-100 text-blue-800';
+            case Status.EM_ANDAMENTO: return 'bg-yellow-100 text-yellow-800';
+            case Status.CONCLUIDA: return 'bg-green-100 text-green-800';
+            default: return 'bg-gray-100 text-gray-800';
+          }
+        };
+
+        const responsibleUser = useMemo(() => users.find(u => u.id === task.userId), [task, users]);
+        const collaborators = useMemo(() => users.filter(u => u.role === UserRole.COLLABORATOR), [users]);
+
+        if (!isOpen) return null;
+
+        const renderDetails = () => (
+          React.createElement('div', { className: "space-y-4" },
+            React.createElement('div', { className: "p-4 border rounded-lg bg-gray-50" },
+              React.createElement('label', { className: "block text-sm font-medium text-gray-500" }, "Descrição"),
+              isEditing ?
+                React.createElement('textarea', { name: "description", value: editedTask.description, onChange: handleInputChange, rows: 4, className: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" }) :
+                React.createElement('p', { className: "text-gray-800 mt-1" }, task.description || "Nenhuma descrição fornecida.")
+            ),
+            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+              React.createElement('div', { className: "p-3 border rounded-lg" },
+                React.createElement('label', { className: "text-sm font-medium text-gray-500" }, "Responsável"),
+                isEditing ?
+                  React.createElement(Select, { name: "userId", value: editedTask.userId, onChange: handleInputChange, label: "" },
+                    collaborators.map(user => React.createElement('option', { key: user.id, value: user.id }, user.name))
+                  ) :
+                  React.createElement('div', { className: "flex items-center mt-1" },
+                    React.createElement('img', { src: responsibleUser?.avatar, alt: responsibleUser?.name, className: "w-6 h-6 rounded-full mr-2" }),
+                    React.createElement('span', { className: "text-gray-800 font-semibold" }, responsibleUser?.name)
+                  )
+              ),
+              React.createElement('div', { className: "p-3 border rounded-lg" },
+                React.createElement('label', { className: "text-sm font-medium text-gray-500" }, "Prioridade"),
+                isEditing ?
+                  React.createElement(Select, { name: "priority", value: editedTask.priority, onChange: handleInputChange, label: "" },
+                    Object.values(Priority).map(p => React.createElement('option', { key: p, value: p }, p))
+                  ) :
+                  React.createElement('div', { className: "flex items-center mt-1" },
+                    React.createElement(PriorityIcon, { priority: task.priority }),
+                    React.createElement('span', { className: "text-gray-800 font-semibold ml-2" }, task.priority)
+                  )
+              )
+            ),
+            React.createElement('div', { className: "p-3 border rounded-lg" },
+              React.createElement('label', { className: "text-sm font-medium text-gray-500" }, "Datas"),
+              React.createElement('div', { className: "flex justify-between items-center mt-2 text-sm" },
+                React.createElement('div', { className: "flex flex-col" }, React.createElement('span', { className: "text-gray-500" }, "Criada em:"), React.createElement('span', { className: "font-semibold text-gray-800" }, new Date(task.createdAt).toLocaleDateString())),
+                React.createElement('div', { className: "flex flex-col" }, React.createElement('span', { className: "text-gray-500" }, "Início:"), React.createElement('span', { className: "font-semibold text-gray-800" }, new Date(task.startDate).toLocaleDateString())),
+                React.createElement('div', { className: "flex flex-col" },
+                  React.createElement('span', { className: "text-gray-500" }, "Entrega:"),
+                  isEditing ?
+                    React.createElement(Input, { type: "date", name: "dueDate", value: editedTask.dueDate.split('T')[0], onChange: handleInputChange, label: "" }) :
+                    React.createElement('span', { className: "font-semibold text-gray-800" }, new Date(task.dueDate).toLocaleDateString())
+                ),
+                React.createElement('div', { className: "flex flex-col" }, React.createElement('span', { className: "text-gray-500" }, "Concluída em:"), React.createElement('span', { className: "font-semibold text-gray-800" }, task.completedAt ? new Date(task.completedAt).toLocaleDateString() : '—'))
+              )
+            ),
+            task.files && task.files.length > 0 && React.createElement('div', { className: "p-3 border rounded-lg" },
+              React.createElement('h5', { className: "text-sm font-medium text-gray-500 mb-2" }, "Anexos"),
+              React.createElement('div', { className: "space-y-2" },
+                task.files.map((file, index) =>
+                  React.createElement('div', { key: index, className: "flex items-center text-sm text-gray-700 bg-gray-50 p-2 rounded" },
+                    React.createElement(FileIcon, { className: "w-5 h-5 mr-3 text-gray-500" }),
+                    React.createElement('span', null, file.name),
+                    React.createElement('span', { className: "ml-auto text-xs text-gray-500" }, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+                  )
+                )
+              )
+            )
+          )
+        );
+
+        const renderHistory = () => (
+          React.createElement('div', { className: "space-y-4 max-h-[60vh] overflow-y-auto pr-2" },
+            task.history.slice().reverse().map((entry, index) =>
+              React.createElement('div', { key: index, className: "flex gap-4" },
+                React.createElement('div', { className: "flex flex-col items-center" },
+                  React.createElement('div', { className: "w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center" },
+                    React.createElement(HistoryIcon, { className: "w-5 h-5 text-gray-600" })
+                  ),
+                  index < task.history.length - 1 && React.createElement('div', { className: "w-px flex-grow bg-gray-200 my-1" })
+                ),
+                React.createElement('div', null,
+                  React.createElement('p', { className: "text-sm text-gray-800" }, React.createElement('span', { className: "font-semibold" }, entry.user), ` ${entry.changes}`),
+                  React.createElement('p', { className: "text-xs text-gray-500 mt-0.5" }, new Date(entry.date).toLocaleString())
+                )
+              )
+            )
+          )
+        );
+        
+        return React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4", onClick: onClose },
+          React.createElement('div', { className: "bg-white rounded-lg shadow-2xl w-full max-w-3xl transform transition-all", onClick: e => e.stopPropagation() },
+            React.createElement('div', { className: "p-6 border-b" },
+              React.createElement('div', { className: "flex justify-between items-start" },
+                React.createElement('div', null,
+                  isEditing ?
+                    React.createElement(Input, { name: "title", value: editedTask.title, onChange: handleInputChange, label: "", className: "text-2xl font-bold" }) :
+                    React.createElement('h2', { className: "text-2xl font-bold text-gray-800" }, task.title),
+                  React.createElement('p', { className: "text-sm text-gray-500" }, `No projeto `, React.createElement('span', {className: 'font-semibold'}, task.project), ` • Criada há ${getTaskAge(task.createdAt)}`)
+                ),
+                React.createElement('div', { className: "flex items-center gap-2" },
+                  isEditing ?
+                    React.createElement(Select, { name: "status", value: editedTask.status, onChange: handleInputChange, label: "", className: `${getStatusClass(editedTask.status)} font-semibold border-2` },
+                      Object.values(Status).map(s => React.createElement('option', { key: s, value: s }, s))
+                    ) :
+                    React.createElement('div', { className: `text-sm font-semibold px-3 py-1 rounded-full ${getStatusClass(task.status)}` }, task.status),
+                  React.createElement('button', { onClick: onClose, className: "text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100" }, React.createElement(CloseIcon, { className: "w-6 h-6" }))
+                )
+              )
+            ),
+            React.createElement('div', { className: "p-6" },
+              React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('div', { className: "border-b" },
+                  React.createElement('button', { onClick: () => setActiveTab('details'), className: `px-4 py-2 text-sm font-medium ${activeTab === 'details' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}` }, "Detalhes"),
+                  React.createElement('button', { onClick: () => setActiveTab('history'), className: `px-4 py-2 text-sm font-medium ${activeTab === 'history' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}` }, "Histórico")
+                ),
+                React.createElement('div', null,
+                  isEditing ?
+                    React.createElement('div', { className: "flex gap-2" },
+                      React.createElement(Button, { onClick: () => setIsEditing(false), variant: "secondary", size: "sm" }, "Cancelar"),
+                      React.createElement(Button, { onClick: handleSave, size: "sm" }, "Salvar")
+                    ) :
+                    React.createElement(Button, { onClick: () => setIsEditing(true), variant: "secondary", size: "sm", className: "flex items-center gap-1.5" },
+                      React.createElement(EditIcon, { className: "w-4 h-4" }), " Editar Tarefa"
+                    )
+                )
+              ),
+              activeTab === 'details' ? renderDetails() : renderHistory()
+            )
+          )
+        );
+      };
+      
+      const TutorialModal = ({ isOpen, onClose, userRole }) => {
+        const collaboratorSteps = [{ title: "Bem-vindo(a) à Plataforma!", content: "Esta é a sua central de tarefas. Aqui você pode ver todas as suas atividades e adicionar novas." }, { title: "Suas Tarefas", content: "Na tela principal, você encontrará a lista de todas as tarefas atribuídas a você. Fique de olho nos prazos e prioridades!" }, { title: "Adicionando uma Nova Tarefa", content: "Clique em 'Adicionar Nova Tarefa' para abrir o formulário. Preencha os detalhes como título, projeto e data de entrega." }, { title: "Detalhes da Tarefa", content: "Não se esqueça de definir a prioridade e, se necessário, anexar arquivos importantes para a execução da tarefa." }, { title: "Tudo Pronto!", content: "É simples assim! Mantenha suas tarefas atualizadas para que todos possam acompanhar o andamento dos projetos. Bom trabalho!" }];
+        const adminSteps = [{ title: "Bem-vindo(a), Administrador(a)!", content: "Você tem acesso total à plataforma. Use os dashboards e ferramentas para gerenciar projetos, equipes e tarefas de forma eficiente." }, { title: "Dashboard Principal", content: "Acompanhe as métricas principais. Os gráficos mostram o status das tarefas e a carga de trabalho da equipe. Use os filtros para análises detalhadas." }, { title: "Visualização Kanban e Lista", content: "Alterne entre a visualização em 'Lista' para um relatório detalhado e 'Kanban' para uma visão do fluxo de trabalho. O Kanban é ótimo para ver o progresso das tarefas pelas etapas." }, { title: "Chat-Tarefas com IA", content: "Use o 'Chat-Tarefas' para encontrar informações rapidamente. Pergunte em linguagem natural, como 'quais tarefas estão atrasadas?' e a IA encontrará para você." }, { title: "Gerenciamento de Usuários", content: "Na seção 'Usuários', você pode adicionar novos colaboradores e administradores à plataforma e visualizar a lista de todos os membros da equipe." }, { title: "Tudo Pronto!", content: "Explore as ferramentas para otimizar o fluxo de trabalho da FAAE Projetos. Seu gerenciamento é a chave para o sucesso!" }];
+
+        const [currentStep, setCurrentStep] = useState(0);
+        const steps = userRole === UserRole.ADMIN ? adminSteps : collaboratorSteps;
+
+        useEffect(() => {
+          if (isOpen) setCurrentStep(0);
+        }, [isOpen]);
+
+        if (!isOpen) return null;
+
+        const handleNext = () => currentStep < steps.length - 1 ? setCurrentStep(currentStep + 1) : onClose();
+        const handlePrev = () => currentStep > 0 && setCurrentStep(currentStep - 1);
+        const current = steps[currentStep];
+
+        return React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4" },
+          React.createElement('div', { className: "bg-white rounded-lg shadow-2xl w-full max-w-lg transform transition-all" },
+            React.createElement('div', { className: "p-6" },
+              React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('h3', { className: "text-xl font-bold text-gray-800" }, current.title),
+                React.createElement('button', { onClick: onClose, className: "text-gray-400 hover:text-gray-600" }, "×")
+              ),
+              React.createElement('p', { className: "text-gray-600 mb-6" }, current.content)
+            ),
+            React.createElement('div', { className: "bg-gray-50 px-6 py-4 flex justify-between items-center rounded-b-lg" },
+              React.createElement('span', { className: "text-sm text-gray-500" }, `Passo ${currentStep + 1} de ${steps.length}`),
+              React.createElement('div', { className: "space-x-2" },
+                currentStep > 0 && React.createElement(Button, { onClick: handlePrev, variant: "secondary", size: "sm" }, "Anterior"),
+                React.createElement(Button, { onClick: handleNext, size: "sm" }, currentStep === steps.length - 1 ? 'Concluir' : 'Próximo')
+              )
+            )
+          )
+        );
+      };
+      
+      const UserManagement = ({ users, onAddUser, onUpdateUser }) => {
+        const [isFormOpen, setIsFormOpen] = useState(false);
+        const [editingUser, setEditingUser] = useState(null);
+        const [formData, setFormData] = useState({ name: '', role: UserRole.COLLABORATOR, avatar: '' });
+
+        useEffect(() => { if (!isFormOpen) setEditingUser(null); }, [isFormOpen]);
+
+        const handleOpenFormForAdd = () => {
+          setEditingUser(null);
+          setFormData({ name: '', role: UserRole.COLLABORATOR, avatar: '' });
+          setIsFormOpen(true);
+        };
+        const handleOpenFormForEdit = (user) => {
+          setEditingUser(user);
+          setFormData({ name: user.name, role: user.role, avatar: user.avatar || '' });
+          setIsFormOpen(true);
+        };
+        const handleCancel = () => setIsFormOpen(false);
+        const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          if (!formData.name.trim()) return alert("O nome do usuário não pode estar em branco.");
+          if (editingUser) onUpdateUser({ ...editingUser, ...formData }); else onAddUser(formData);
+          handleCancel();
+        };
+
+        return React.createElement('div', { className: "max-w-4xl mx-auto space-y-6" },
+          React.createElement('div', { className: "bg-white p-6 rounded-lg shadow-md" },
+            React.createElement('div', { className: "flex justify-between items-center mb-6 flex-wrap gap-4" },
+              React.createElement('h2', { className: "text-2xl font-bold text-gray-800" }, "Gerenciamento de Usuários"),
+              !isFormOpen && React.createElement(Button, { onClick: handleOpenFormForAdd }, "Adicionar Usuário")
+            ),
+            isFormOpen && React.createElement('div', { className: "bg-gray-50 p-6 rounded-lg border mb-6 transition-all duration-300" },
+              React.createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
+                React.createElement('h3', { className: "text-xl font-semibold text-gray-700 border-b pb-2 mb-4" }, editingUser ? 'Editar Usuário' : 'Adicionar Novo Usuário'),
+                React.createElement(Input, { label: "Nome Completo", name: "name", value: formData.name, onChange: handleInputChange, required: true, placeholder: "Ex: João da Silva" }),
+                React.createElement(Input, { label: "URL do Avatar", name: "avatar", value: formData.avatar, onChange: handleInputChange, placeholder: "https://exemplo.com/avatar.png" }),
+                React.createElement(Select, { label: "Função", name: "role", value: formData.role, onChange: handleInputChange },
+                  React.createElement('option', { value: UserRole.COLLABORATOR }, "Colaborador"),
+                  React.createElement('option', { value: UserRole.ADMIN }, "Administrador")
+                ),
+                React.createElement('div', { className: "flex justify-end items-center gap-4 pt-2" },
+                  React.createElement(Button, { type: "button", variant: "secondary", onClick: handleCancel }, "Cancelar"),
+                  React.createElement(Button, { type: "submit" }, editingUser ? 'Salvar Alterações' : 'Salvar Usuário')
+                )
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('h3', { className: "text-lg font-semibold text-gray-700 mb-4" }, `Usuários Atuais (${users.length})`),
+              React.createElement('div', { className: "border rounded-lg overflow-hidden" },
+                users.map(user =>
+                  React.createElement('div', { key: user.id, className: "flex justify-between items-center p-4 border-b last:border-b-0 bg-white hover:bg-gray-50 transition-colors" },
+                    React.createElement('div', { className: "flex items-center gap-4" },
+                      React.createElement('img', { src: user.avatar || `https://i.pravatar.cc/48?u=${user.id}`, alt: user.name, className: "w-12 h-12 rounded-full object-cover" }),
+                      React.createElement('div', null,
+                        React.createElement('p', { className: "font-semibold text-gray-800" }, user.name),
+                        React.createElement('p', { className: "text-sm text-gray-500" }, user.role)
+                      )
+                    ),
+                    React.createElement(Button, { size: "sm", variant: "secondary", onClick: () => handleOpenFormForEdit(user) }, "Editar")
+                  )
+                )
+              )
+            )
+          )
+        );
+      };
+      
+      const ChatInterface = ({ allTasks, users }) => {
+        const [input, setInput] = useState('');
+        const [messages, setMessages] = useState([]);
+        const [isLoading, setIsLoading] = useState(false);
+        const messagesEndRef = useRef(null);
+
+        const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        useEffect(scrollToBottom, [messages]);
+
+        const handleSendMessage = async (e) => {
+          e.preventDefault();
+          if (!input.trim() || isLoading) return;
+          const userMessage = { sender: 'user', content: input };
+          setMessages(prev => [...prev, userMessage]);
+          setInput('');
+          setIsLoading(true);
+          try {
+            const foundTasks = await findTaskWithAI(input, allTasks, users);
+            if (foundTasks.length > 0) setMessages(prev => [...prev, { sender: 'ai', content: foundTasks }]);
+            else setMessages(prev => [...prev, { sender: 'ai', content: 'Não encontrei nenhuma tarefa que corresponda à sua descrição. Tente ser mais específico.' }]);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+            setMessages(prev => [...prev, { sender: 'error', content: errorMessage }]);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        return React.createElement('div', { className: "flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto bg-white shadow-2xl rounded-lg" },
+          React.createElement('div', { className: "p-4 border-b" },
+            React.createElement('h2', { className: "text-xl font-bold text-gray-800" }, "Chat-Tarefas"),
+            React.createElement('p', { className: "text-sm text-gray-500" }, 'Pergunte em linguagem natural sobre qualquer tarefa. Ex: "qual o status da modelagem 3d?"')
+          ),
+          React.createElement('div', { className: "flex-1 p-6 overflow-y-auto bg-gray-50 space-y-6" },
+            messages.map((msg, index) =>
+              React.createElement('div', { key: index, className: `flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}` },
+                msg.sender !== 'user' && React.createElement('div', { className: "w-8 h-8 rounded-full bg-gray-700 text-white flex items-center justify-center font-bold text-sm" }, "AI"),
+                React.createElement('div', { className: `rounded-xl p-4 max-w-lg ${msg.sender === 'user' ? 'bg-indigo-600 text-white' : msg.sender === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-200 text-gray-800'}` },
+                  typeof msg.content === 'string' ? React.createElement('p', null, msg.content) :
+                    React.createElement('div', { className: "space-y-4" },
+                      React.createElement('p', { className: "font-semibold mb-2" }, `Encontrei ${msg.content.length > 1 ? `${msg.content.length} tarefas` : 'esta tarefa'} para você:`),
+                      msg.content.map(task => React.createElement(TaskCard, { key: task.id, task: task, user: users.find(u => u.id === task.userId), isCompact: true }))
+                    )
+                )
+              )
+            ),
+            isLoading && React.createElement('div', { className: "flex justify-start items-center gap-3" },
+              React.createElement('div', { className: "w-8 h-8 rounded-full bg-gray-700 text-white flex items-center justify-center font-bold text-sm" }, "AI"),
+              React.createElement('div', { className: "bg-gray-200 text-gray-800 rounded-xl p-4 flex items-center space-x-2" },
+                React.createElement(Spinner), React.createElement('span', null, "Analisando tarefas...")
+              )
+            ),
+            React.createElement('div', { ref: messagesEndRef })
+          ),
+          React.createElement('div', { className: "p-4 border-t bg-white" },
+            React.createElement('form', { onSubmit: handleSendMessage, className: "flex items-center space-x-4" },
+              React.createElement('input', { type: "text", value: input, onChange: (e) => setInput(e.target.value), placeholder: "Digite sua pergunta aqui...", className: "flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3", disabled: isLoading }),
+              React.createElement(Button, { type: "submit", disabled: isLoading || !input.trim() }, isLoading ? React.createElement(Spinner) : 'Enviar')
+            )
+          )
+        );
+      };
+      
+      const CollaboratorDashboard = ({ userTasks, onAddTask, currentUser, onSelectTask }) => {
+        const [showForm, setShowForm] = useState(false);
+        const [newTask, setNewTask] = useState({ title: '', description: '', priority: Priority.MEDIA, startDate: new Date().toISOString().split('T')[0], dueDate: '', project: '', files: [] });
+        const [files, setFiles] = useState(null);
+
+        const handleInputChange = (e) => setNewTask(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const handleFileChange = (e) => { if (e.target.files) setFiles(e.target.files); };
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          if (!newTask.title || !newTask.dueDate || !newTask.project) return alert("Por favor, preencha Título, Data de Entrega e Projeto.");
+          const attachedFiles = files ? Array.from(files).map(f => ({ name: f.name, size: f.size })) : [];
+          const now = new Date().toISOString();
+          onAddTask({ ...newTask, userId: currentUser.id, status: Status.ABERTA, files: attachedFiles, createdAt: now, completedAt: null, history: [{ date: now, user: currentUser.name, changes: 'Tarefa criada.' }] });
+          setNewTask({ title: '', description: '', priority: Priority.MEDIA, startDate: new Date().toISOString().split('T')[0], dueDate: '', project: '', files: [] });
+          setFiles(null);
+          setShowForm(false);
+        };
+
+        return React.createElement('div', { className: "space-y-6" },
+          React.createElement('div', { className: "flex justify-between items-center" },
+            React.createElement('h2', { className: "text-2xl font-bold text-gray-800" }, "Minhas Tarefas"),
+            React.createElement(Button, { onClick: () => setShowForm(!showForm) }, showForm ? 'Cancelar' : 'Adicionar Nova Tarefa')
+          ),
+          showForm && React.createElement('div', { className: "bg-white p-6 rounded-lg shadow-md transition-all duration-300" },
+            React.createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
+              React.createElement('h3', { className: "text-xl font-semibold text-gray-700 border-b pb-2" }, "Nova Tarefa"),
+              React.createElement(Input, { label: "Título da Tarefa", name: "title", value: newTask.title, onChange: handleInputChange, required: true }),
+              React.createElement('div', null,
+                React.createElement('label', { htmlFor: "description", className: "block text-sm font-medium text-gray-700" }, "Descrição"),
+                React.createElement('textarea', { id: "description", name: "description", value: newTask.description, onChange: handleInputChange, rows: 3, className: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" })
+              ),
+              React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
+                React.createElement(Input, { label: "Projeto", name: "project", value: newTask.project, onChange: handleInputChange, required: true }),
+                React.createElement(Select, { label: "Prioridade", name: "priority", value: newTask.priority, onChange: handleInputChange },
+                  Object.values(Priority).map(p => React.createElement('option', { key: p, value: p }, p))
+                ),
+                React.createElement(Input, { label: "Data de Entrega", name: "dueDate", type: "date", value: newTask.dueDate, onChange: handleInputChange, required: true })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: "block text-sm font-medium text-gray-700" }, "Anexar Arquivos"),
+                React.createElement('input', { type: "file", multiple: true, onChange: handleFileChange, className: "mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" }),
+                files && React.createElement('div', { className: "mt-2 text-sm text-gray-600" }, Array.from(files).map(f => f.name).join(', '))
+              ),
+              React.createElement('div', { className: "flex justify-end pt-2" }, React.createElement(Button, { type: "submit" }, "Salvar Tarefa"))
+            )
+          ),
+          React.createElement('div', { className: "space-y-4" },
+            userTasks.length > 0 ?
+              userTasks.map(task => React.createElement(TaskCard, { key: task.id, task: task, user: currentUser, onClick: () => onSelectTask(task) })) :
+              React.createElement('div', { className: "text-center py-12 bg-white rounded-lg shadow-md" }, React.createElement('p', { className: "text-gray-500" }, "Você ainda não tem tarefas. Que tal adicionar uma?"))
+          )
+        );
+      };
+      
+      const AdminDashboard = ({ tasks, users, onSelectTask }) => {
+        const [filterPerson, setFilterPerson] = useState('all');
+        const [filterProject, setFilterProject] = useState('');
+        const [filterPriority, setFilterPriority] = useState('all');
+        const [filterStatus, setFilterStatus] = useState('all');
+        const [view, setView] = useState('kanban');
+
+        const collaborators = useMemo(() => users.filter(u => u.role === UserRole.COLLABORATOR), [users]);
+        const filteredTasks = useMemo(() => {
+          return tasks.filter(task =>
+            (filterPerson === 'all' || task.userId === parseInt(filterPerson)) &&
+            (filterProject === '' || task.project.toLowerCase().includes(filterProject.toLowerCase())) &&
+            (filterPriority === 'all' || task.priority === filterPriority) &&
+            (filterStatus === 'all' || task.status === filterStatus)
+          );
+        }, [tasks, filterPerson, filterProject, filterPriority, filterStatus]);
+
+        const statusChartData = useMemo(() => {
+          const statusCounts = filteredTasks.reduce((acc, task) => { acc[task.status] = (acc[task.status] || 0) + 1; return acc; }, {});
+          return {
+            labels: Object.keys(statusCounts),
+            datasets: [{ label: '# de Tarefas', data: Object.values(statusCounts), backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)'], borderColor: ['#fff'], borderWidth: 2 }],
+          };
+        }, [filteredTasks]);
+
+        const tasksPerUserChartData = useMemo(() => {
+          const tasksToConsider = tasks.filter(task => (filterProject === '' || task.project.toLowerCase().includes(filterProject.toLowerCase())) && (filterPriority === 'all' || task.priority === filterPriority) && (filterStatus === 'all' || task.status === filterStatus));
+          const userTaskCounts = collaborators.reduce((acc, user) => { acc[user.name] = tasksToConsider.filter(task => task.userId === user.id).length; return acc; }, {});
+          return {
+            labels: Object.keys(userTaskCounts),
+            datasets: [{ label: 'Nº de Tarefas Atribuídas', data: Object.values(userTaskCounts), backgroundColor: 'rgba(129, 140, 248, 0.6)', borderColor: 'rgba(107, 114, 245, 1)', borderWidth: 1, borderRadius: 4 }]
+          };
+        }, [tasks, collaborators, filterProject, filterPriority, filterStatus]);
+        
+        const kanbanColumns = Object.values(Status);
+
+        return React.createElement('div', { className: "space-y-6" },
+          React.createElement('div', { className: "bg-white p-6 rounded-lg shadow-md" },
+            React.createElement('h2', { className: "text-2xl font-bold text-gray-800 mb-4" }, "Filtros e Controles"),
+            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" },
+              React.createElement(Select, { label: "Filtrar por Pessoa", value: filterPerson, onChange: e => setFilterPerson(e.target.value) }, React.createElement('option', { value: "all" }, "Todos"), collaborators.map(user => React.createElement('option', { key: user.id, value: user.id }, user.name))),
+              React.createElement(Input, { label: "Filtrar por Projeto", placeholder: "Nome do projeto...", value: filterProject, onChange: e => setFilterProject(e.target.value) }),
+              React.createElement(Select, { label: "Filtrar por Prioridade", value: filterPriority, onChange: e => setFilterPriority(e.target.value) }, React.createElement('option', { value: "all" }, "Todas"), Object.values(Priority).map(p => React.createElement('option', { key: p, value: p }, p))),
+              React.createElement(Select, { label: "Filtrar por Status", value: filterStatus, onChange: e => setFilterStatus(e.target.value) }, React.createElement('option', { value: "all" }, "Todos"), Object.values(Status).map(s => React.createElement('option', { key: s, value: s }, s)))
+            )
+          ),
+          React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
+            React.createElement('div', { className: "lg:col-span-1 bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center" }, React.createElement('h3', { className: "text-lg font-semibold text-gray-700 mb-4 w-full" }, "Tarefas por Status"), React.createElement('div', { className: 'w-full max-w-[250px]' }, filteredTasks.length > 0 ? React.createElement(Doughnut, { data: statusChartData, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'right' } } } }) : React.createElement('p', { className: "text-center text-gray-500 py-8" }, "Sem dados para exibir."))),
+            React.createElement('div', { className: "lg:col-span-2 bg-white p-6 rounded-lg shadow-md" }, React.createElement('h3', { className: "text-lg font-semibold text-gray-700 mb-2" }, "Carga de Trabalho por Colaborador"), React.createElement('p', { className: "text-xs text-gray-500 mb-4 -mt-1" }, "Filtros de Projeto, Prioridade e Status são aplicados."), React.createElement('div', { className: "h-64" }, collaborators.length > 0 ? React.createElement(Bar, { data: tasksPerUserChartData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } }) : React.createElement('p', { className: "text-center text-gray-500 py-8" }, "Sem dados para exibir.")))
+          ),
+          React.createElement('div', { className: "bg-white p-6 rounded-lg shadow-md" },
+            React.createElement('div', { className: "flex justify-between items-center mb-6 flex-wrap gap-4" },
+              React.createElement('div', { className: "flex items-center space-x-2" },
+                React.createElement(Button, { size: "sm", variant: view === 'list' ? 'primary' : 'secondary', onClick: () => setView('list') }, "Lista"),
+                React.createElement(Button, { size: "sm", variant: view === 'kanban' ? 'primary' : 'secondary', onClick: () => setView('kanban') }, "Kanban")
+              ),
+              React.createElement(Button, { onClick: () => alert("A impressão está desabilitada nesta versão de mockup."), disabled: true }, "Gerar Relatório da Lista")
+            ),
+            view === 'kanban' && React.createElement('div', { className: "flex gap-4 overflow-x-auto pb-4 -mx-6 px-6" },
+                kanbanColumns.map(status => React.createElement('div', { key: status, className: "flex-shrink-0 w-80 bg-gray-50 rounded-lg border" },
+                    React.createElement('div', { className: "p-3 border-b bg-white rounded-t-lg sticky top-0 z-10" }, React.createElement('h3', { className: "font-semibold text-gray-700" }, status, React.createElement('span', { className: "text-sm font-normal text-gray-500 bg-gray-200 rounded-full px-2 py-0.5 ml-2" }, filteredTasks.filter(t => t.status === status).length))),
+                    React.createElement('div', { className: "p-3 space-y-3 h-[60vh] overflow-y-auto" },
+                        filteredTasks.filter(t => t.status === status).length > 0 ?
+                        filteredTasks.filter(t => t.status === status).map(task => React.createElement(TaskCard, { key: task.id, task: task, user: users.find(u => u.id === task.userId), onClick: () => onSelectTask(task) })) :
+                        React.createElement('div', { className: "flex items-center justify-center h-full text-center p-4 text-sm text-gray-400" }, "Nenhuma tarefa aqui.")
+                    )
+                ))
+            ),
+            view === 'list' && React.createElement('div', { className: "space-y-4" },
+              filteredTasks.length > 0 ?
+              filteredTasks.map(task => React.createElement(TaskCard, { key: task.id, task: task, user: users.find(u => u.id === task.userId), onClick: () => onSelectTask(task) })) :
+              React.createElement('div', { className: "text-center py-12" }, React.createElement('p', { className: "text-gray-500" }, "Nenhuma tarefa encontrada com os filtros aplicados."))
+            )
+          )
+        );
+      };
+      
+      const Header = ({ user, onLogout, onNavigate, currentPage, onShowTutorial }) => {
+        const NavLink = ({ page, children }) => React.createElement('button', {
+          onClick: () => onNavigate(page),
+          className: `px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === page ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`
+        }, children);
+
+        return React.createElement('header', { className: "bg-gray-800 text-white shadow-md" },
+          React.createElement('div', { className: "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" },
+            React.createElement('div', { className: "flex h-16 items-center justify-between" },
+              React.createElement('div', { className: "flex items-center" },
+                React.createElement('span', { className: "text-2xl font-bold" }, "FAAE Projetos"),
+                user.role === UserRole.ADMIN && React.createElement('div', { className: "hidden md:block ml-10" },
+                  React.createElement('div', { className: "flex items-baseline space-x-4" },
+                    React.createElement(NavLink, { page: Page.DASHBOARD }, "Dashboard"),
+                    React.createElement(NavLink, { page: Page.CHAT }, "Chat-Tarefas"),
+                    React.createElement(NavLink, { page: Page.USERS }, "Usuários")
+                  )
+                )
+              ),
+              React.createElement('div', { className: "flex items-center" },
+                React.createElement('div', { className: "flex items-center mr-4" },
+                  user.avatar && React.createElement('img', { src: user.avatar, alt: user.name, className: "w-8 h-8 rounded-full mr-3" }),
+                  React.createElement('span', { className: "text-gray-300 hidden sm:block" }, "Olá, ", React.createElement('span', { className: "font-semibold" }, user.name), ` (${user.role})`)
+                ),
+                React.createElement('button', { onClick: onShowTutorial, className: "flex items-center gap-2 mr-4 px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" },
+                  React.createElement(HelpIcon, { className: "w-5 h-5" }),
+                  React.createElement('span', { className: "hidden md:inline" }, "Tutorial")
+                ),
+                React.createElement(Button, { onClick: onLogout, size: "sm", variant: "secondary" }, "Sair")
+              )
+            )
+          )
+        );
+      };
+
+      // --- APP COMPONENT ---
+      const App = () => {
+        const [currentUser, setCurrentUser] = useState(null);
+        const [currentPage, setCurrentPage] = useState(Page.DASHBOARD);
+        const [tasks, setTasks] = useState(TASKS);
+        const [users, setUsers] = useState(USERS);
+        const [showTutorial, setShowTutorial] = useState(false);
+        const [selectedTask, setSelectedTask] = useState(null);
+
+        const handleLogin = (role) => {
+          const user = users.find(u => u.role === role);
+          if (user) {
+            setCurrentUser(user);
+            setCurrentPage(Page.DASHBOARD);
+            setShowTutorial(true);
+          }
+        };
+        const handleLogout = () => setCurrentUser(null);
+        const handleAddTask = useCallback((newTask) => setTasks(prevTasks => [...prevTasks, { ...newTask, id: prevTasks.length + 1 }]), []);
+        const handleAddUser = useCallback((newUser) => setUsers(prevUsers => { const newId = prevUsers.length > 0 ? Math.max(...prevUsers.map(u => u.id)) + 1 : 1; return [...prevUsers, { ...newUser, id: newId }]; }), []);
+        const handleUpdateUser = useCallback((updatedUser) => setUsers(prevUsers => prevUsers.map(user => user.id === updatedUser.id ? updatedUser : user)), []);
+        const handleShowTutorial = () => setShowTutorial(true);
+        const handleCloseTutorial = () => setShowTutorial(false);
+        const handleSelectTask = (task) => setSelectedTask(task);
+        const handleCloseTaskModal = () => setSelectedTask(null);
+
+        const handleUpdateTask = useCallback((updatedTask) => {
+          if (!currentUser) return;
+          const originalTask = tasks.find(t => t.id === updatedTask.id);
+          if (!originalTask) return;
+          const changes = [];
+          if (originalTask.title !== updatedTask.title) changes.push(`Título alterado de "${originalTask.title}" para "${updatedTask.title}".`);
+          if (originalTask.status !== updatedTask.status) changes.push(`Status alterado de "${originalTask.status}" para "${updatedTask.status}".`);
+          if (originalTask.status !== Status.CONCLUIDA && updatedTask.status === Status.CONCLUIDA) updatedTask.completedAt = new Date().toISOString();
+          else if (originalTask.status === Status.CONCLUIDA && updatedTask.status !== Status.CONCLUIDA) updatedTask.completedAt = null;
+          const taskWithHistory = { ...updatedTask };
+          if (changes.length > 0) {
+            const historyEntry = { date: new Date().toISOString(), user: currentUser.name, changes: changes.join(' ') };
+            taskWithHistory.history = [...originalTask.history, historyEntry];
+          }
+          setTasks(prevTasks => prevTasks.map(t => t.id === updatedTask.id ? taskWithHistory : t));
+          setSelectedTask(taskWithHistory);
+        }, [tasks, currentUser, users]);
+
+        if (!currentUser) {
+          return React.createElement('div', { className: "flex flex-col items-center justify-center h-screen bg-gray-100" },
+            React.createElement('div', { className: "text-center bg-white p-12 rounded-xl shadow-2xl" },
+              React.createElement('h1', { className: "text-4xl font-bold text-gray-800 mb-2" }, "FAAE Projetos"),
+              React.createElement('p', { className: "text-gray-500 mb-8" }, "Plataforma de Gestão de Tarefas"),
+              React.createElement('div', { className: "space-y-4" },
+                React.createElement(Button, { onClick: () => handleLogin(UserRole.ADMIN), fullWidth: true }, "Entrar como Administrador"),
+                React.createElement(Button, { onClick: () => handleLogin(UserRole.COLLABORATOR), fullWidth: true, variant: "secondary" }, "Entrar como Colaborador")
+              )
+            )
+          );
+        }
+
+        return React.createElement('div', { className: "min-h-screen bg-gray-50" },
+          React.createElement(Header, { user: currentUser, onLogout: handleLogout, onNavigate: setCurrentPage, currentPage: currentPage, onShowTutorial: handleShowTutorial }),
+          React.createElement('main', { className: "p-4 sm:p-6 lg:p-8" },
+            currentPage === Page.DASHBOARD && currentUser.role === UserRole.ADMIN && React.createElement(AdminDashboard, { tasks: tasks, users: users, onSelectTask: handleSelectTask }),
+            currentPage === Page.DASHBOARD && currentUser.role === UserRole.COLLABORATOR && React.createElement(CollaboratorDashboard, { userTasks: tasks.filter(t => t.userId === currentUser.id), onAddTask: handleAddTask, currentUser: currentUser, onSelectTask: handleSelectTask }),
+            currentPage === Page.CHAT && currentUser.role === UserRole.ADMIN && React.createElement(ChatInterface, { allTasks: tasks, users: users }),
+            currentPage === Page.USERS && currentUser.role === UserRole.ADMIN && React.createElement(UserManagement, { users: users, onAddUser: handleAddUser, onUpdateUser: handleUpdateUser })
+          ),
+          React.createElement(TutorialModal, { isOpen: showTutorial, onClose: handleCloseTutorial, userRole: currentUser.role }),
+          selectedTask && React.createElement(TaskDetailModal, { task: selectedTask, users: users, currentUser: currentUser, isOpen: !!selectedTask, onClose: handleCloseTaskModal, onUpdate: handleUpdateTask })
+        );
+      };
+
+      // --- RENDERER ---
+      const rootElement = document.getElementById('root');
+      if (!rootElement) throw new Error("Could not find root element to mount to");
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

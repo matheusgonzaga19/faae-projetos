@@ -1,0 +1,40 @@
+a ferramenta mais importante é  aparte de dashboard, onde o administrador "chefe" vai consumir todas as informações de progresso de todos os projetos e principalmente as informações de tarefas por usuários, pensa, esse chefe tem um time, e esse time tem uma serie de tarefas em cada projeto que precisa ser entregue em determinados prazos, para isso ele precisa entrar e ter todas essas informações organizada, conseguir fazer todos os filtros possíveis, como por exemplo:
+
+Datas (inicio e fim), prioridades, por usuário, por tags, etc, e quando ele passa o mouse dentro de cada gráfico, ele fique 100% interativo com ele, além de ter botões de extração de relatório em PDF a cada filtro que ele fizer.
+
+Por exxempo, quando ele filtrar uma data de inicio e fim e um usuário, ele vaiter a visualização das tarefas deste usuário dentro deste período, ai quando ele clicar em download de relatório, vai ser gerado esse relatoroo completo em pdf.,
+
+
+vou te mandar outra coisa para fazer depois, hoje esse e o modelo que os usuários mandam as informações nesse padrão, a ideia e cada um entrar em seu suuario e colocar suas tarefas em cada projeto, porem vou te emandar o modo e padrão de como isso e enviado hoje, além de anexar o pdf de relatório que eu gero para o administradoe "chefe":
+
+como o usuário (colaborador manda):
+📆 Data: 03/07/2025  
+👤 Nome: Juliana 
+
+📌 Atividades do dia:
+
+⿡  
+🔸 Projeto: hebert - econ
+🔸 Tipo: revisão solicitado pela aline 
+🔸 Descrição: plantas:
+- cobertura
+- forro
+- pisos e acabamentos
+- iluminação 
+- elétrica
+- corte 
+- vistas
+- ajuste de 3D conforme o executivo 
+- fotos 
+- PDF's
+🔸 Tempo: 8:00 ás 17:34
+🔸 Status: em andamento
+🔸 Participantes: -
+🔸 Complexidade: media
+🔸 Categoria: stand
+🔸 Observações: falta fazer planilha de custo, apresentação e finalizar detalhamento
+
+No anexo vou mandar o pdf do relatório.
+
+
+Alem disso revisa pra mim o popup de criação de tarefa, esta dando erro ao criar e quando eu digito algo nos campos ele fica atualizando abrindo e fechando o popup, va a fundo e resolva isso para fica funcional, pensa que so crio o card de tarefa aquando eu aperto o botão do popup de criar tarefa, se não eu posso digitar a vontade nos campos, sem limite de caracteres.
