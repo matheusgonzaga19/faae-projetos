@@ -174,9 +174,9 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <FormControl>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           type="email"
                           placeholder="email@exemplo.com"
@@ -184,8 +184,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                           autoComplete="email"
                           {...field}
                         />
-                      </FormControl>
-                    </div>
+                      </div>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -263,9 +263,9 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <FormControl>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           type="email"
                           placeholder="email@exemplo.com"
@@ -273,8 +273,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                           autoComplete="email"
                           {...field}
                         />
-                      </FormControl>
-                    </div>
+                      </div>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
