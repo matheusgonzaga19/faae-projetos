@@ -142,8 +142,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                       <FormLabel>Nome</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input {...field} placeholder="Nome" className="pl-10" />
+                          <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input placeholder="Nome" className="pl-10" {...field} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -158,8 +158,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                       <FormLabel>Sobrenome</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input {...field} placeholder="Sobrenome" className="pl-10" />
+                          <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input placeholder="Sobrenome" className="pl-10" {...field} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -176,8 +176,14 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input {...field} type="email" placeholder="email@exemplo.com" className="pl-10" />
+                        <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          type="email"
+                          placeholder="email@exemplo.com"
+                          className="pl-10"
+                          autoComplete="email"
+                          {...field}
+                        />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -193,12 +199,12 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                          {...field}
                           type={showPassword ? 'text' : 'password'}
                           placeholder="********"
                           className="pl-10 pr-10"
+                          {...field}
                         />
                         <button
                           type="button"
@@ -222,12 +228,12 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Confirmar Senha</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                          {...field}
                           type={showConfirmPassword ? 'text' : 'password'}
                           placeholder="********"
                           className="pl-10 pr-10"
+                          {...field}
                         />
                         <button
                           type="button"
@@ -257,12 +263,18 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input {...field} type="email" placeholder="email@exemplo.com" className="pl-10" />
-                      </div>
-                    </FormControl>
+                  <FormControl>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="email"
+                        placeholder="email@exemplo.com"
+                        className="pl-10"
+                        autoComplete="email"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -274,16 +286,16 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          {...field}
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="********"
-                          className="pl-10 pr-10"
-                        />
-                        <button
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="********"
+                        className="pl-10 pr-10"
+                        {...field}
+                      />
+                      <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
