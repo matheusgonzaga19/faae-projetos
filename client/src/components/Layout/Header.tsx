@@ -62,10 +62,11 @@ export default function Header({ activeSection, onSectionChange }: HeaderProps) 
         </div>
         
         {/* Navigation */}
-        <Navigation 
+        <Navigation
           activeSection={activeSection}
           onSectionChange={onSectionChange}
           userRole={user?.role}
+          allowedSections={user?.allowedSections}
         />
         
         {/* User Menu */}

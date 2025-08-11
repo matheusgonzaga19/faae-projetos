@@ -12,10 +12,11 @@ interface MobileBottomNavProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
   userRole: string;
+  allowedSections?: string[];
 }
 
-export default function MobileBottomNav({ activeSection, onSectionChange, userRole }: MobileBottomNavProps) {
-  const navItems = [
+export default function MobileBottomNav({ activeSection, onSectionChange, userRole, allowedSections }: MobileBottomNavProps) {
+  let navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'kanban', label: 'Kanban', icon: Kanban },
     { id: 'projects', label: 'Projetos', icon: Building },
@@ -23,11 +24,17 @@ export default function MobileBottomNav({ activeSection, onSectionChange, userRo
     { id: 'files', label: 'Arquivos', icon: Folder },
   ];
 
+  if (userRole !== 'admin' && allowedSections) {
+    navItems = navItems.filter(item => allowedSections.includes(item.id));
+  }
+
   // Add users tab for admins and limit to 5 items to fit mobile
   if (userRole === 'admin') {
     navItems.push({ id: 'users', label: 'Usuários', icon: Users });
   } else {
-    navItems.push({ id: 'chat', label: 'IA Chat', icon: Bot });
+    if (!allowedSections || allowedSections.includes('chat')) {
+      navItems.push({ id: 'chat', label: 'IA Chat', icon: Bot });
+    }
   }
 
   return (

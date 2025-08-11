@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { registerUser, signInWithEmail } from '@/lib/firebase';
+import { registerUser } from '@/lib/firebase';
+import { useAuth } from '@/hooks/useAuth';
 import { TEST_ADMIN_USER } from '@/lib/testUsers';
 import { UserPlus, Eye, EyeOff, Mail, Lock, User, Shield, TestTube } from 'lucide-react';
 
@@ -42,6 +43,7 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { signInWithEmail } = useAuth();
 
   const registerForm = useForm<RegistrationData>({
     resolver: zodResolver(registrationSchema),
