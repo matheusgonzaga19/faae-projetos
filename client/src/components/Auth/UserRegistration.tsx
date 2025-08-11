@@ -174,9 +174,9 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <FormControl>
                         <Input
                           type="email"
                           placeholder="email@exemplo.com"
@@ -184,8 +184,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                           autoComplete="email"
                           {...field}
                         />
-                      </div>
-                    </FormControl>
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -263,18 +263,18 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                  <FormControl>
                     <div className="relative">
                       <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        type="email"
-                        placeholder="email@exemplo.com"
-                        className="pl-10"
-                        autoComplete="email"
-                        {...field}
-                      />
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="email@exemplo.com"
+                          className="pl-10"
+                          autoComplete="email"
+                          {...field}
+                        />
+                      </FormControl>
                     </div>
-                  </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
