@@ -227,7 +227,7 @@ export default function Dashboard() {
   };
 
   const getTasksOverTime = () => {
-    // Mock data for demonstration
+    // Mock data placeholder
     return [
       { name: 'Jan', tasks: 4 },
       { name: 'Fev', tasks: 6 },

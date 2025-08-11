@@ -10,8 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { registerUser } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
-import { TEST_ADMIN_USER } from '@/lib/testUsers';
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, Shield, TestTube } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Mail, Lock, User, Shield } from 'lucide-react';
 
 const registrationSchema = z.object({
   firstName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -115,16 +114,6 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleTestLogin = () => {
-    loginForm.setValue('email', TEST_ADMIN_USER.email);
-    loginForm.setValue('password', TEST_ADMIN_USER.password);
-    
-    toast({
-      title: 'Dados de teste preenchidos!',
-      description: 'Clique em "Entrar" para fazer login como administrador.',
-    });
   };
 
   return (
@@ -341,16 +330,6 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 {isLoading ? 'Entrando...' : 'Entrar'}
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleTestLogin}
-                disabled={isLoading}
-              >
-                <TestTube className="h-4 w-4 mr-2" />
-                Usar Login de Teste (Admin)
-              </Button>
             </form>
           </Form>
         )}

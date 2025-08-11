@@ -508,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userType } = req.body;
       const userId = getUserId(req);
       
-      // For now, allow setting type regardless of existing role (for demo purposes)
+      // For now, allow setting type regardless of existing role
       if (!['admin', 'collaborator'].includes(userType)) {
         return res.status(400).json({ message: "Invalid user type" });
       }

@@ -42,45 +42,9 @@ const fromFirestoreData = (doc: any) => {
   return result;
 };
 
-// Demo data
-const demoUsers = [
-  {
-    id: 'demo-user-123',
-    email: 'admin@faaeprojetos.com.br',
-    firstName: 'Admin',
-    lastName: 'FAAE',
-    profileImageUrl: '',
-    role: 'admin',
-    allowedSections: [...DEFAULT_ALLOWED_SECTIONS, 'users'],
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: 'demo-user-456',
-    email: 'colaborador@faaeprojetos.com.br',
-    firstName: 'João',
-    lastName: 'Silva',
-    profileImageUrl: '',
-    role: 'collaborator',
-    allowedSections: [...DEFAULT_ALLOWED_SECTIONS],
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
-
-const isDemoMode = () => {
-  return (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID === 'demo-faae-projetos';
-};
-
 // Data migration functions
 export const migrationService = {
   async checkAndMigrate() {
-    if (isDemoMode()) {
-      console.log('Demo mode: Skipping migration checks');
-      return Promise.resolve();
-    }
 
     try {
       // Check if new structure exists
@@ -163,8 +127,6 @@ export const migrationService = {
   },
 
   async cleanupOrphanedTasks() {
-    if (isDemoMode()) return;
-
     try {
       const tasksSnapshot = await getDocs(collection(db, 'tasks'));
       const projectsSnapshot = await getDocs(collection(db, 'projects'));
@@ -197,16 +159,6 @@ export const migrationService = {
 // Project management functions
 export const projectService = {
   async addProject(projectData: any) {
-    if (isDemoMode()) {
-      console.log('Demo mode: Project creation simulated', projectData);
-      return Promise.resolve({
-        ...projectData,
-        id: Date.now().toString(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
-
     const now = new Date();
     const data = {
       ...projectData,
@@ -223,53 +175,6 @@ export const projectService = {
   },
 
   async getProjects() {
-    if (isDemoMode()) {
-      return Promise.resolve([
-        {
-          id: '1',
-          name: 'Stand Imobiliário - Residencial Aurora',
-          description: 'Desenvolvimento de stand de vendas para empreendimento residencial',
-          status: 'active',
-          type: 'stand_imobiliario',
-          stage: 'projeto',
-          priority: 'alta',
-          clientName: 'Construtora Aurora Ltda',
-          clientEmail: 'contato@aurora.com.br',
-          managerUserId: 'demo-user-123',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: '2',
-          name: 'Projeto Arquitetônico - Casa dos Sonhos',
-          description: 'Projeto residencial unifamiliar de alto padrão',
-          status: 'active',
-          type: 'projeto_arquitetura',
-          stage: 'conceito',
-          priority: 'media',
-          clientName: 'Família Silva',
-          clientEmail: 'silva@email.com',
-          managerUserId: 'demo-user-123',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: '3',
-          name: 'Reforma Residencial - Apartamento Moderno',
-          description: 'Reforma completa de apartamento de 120m²',
-          status: 'on_hold',
-          type: 'reforma',
-          stage: 'orcamento',
-          priority: 'media',
-          clientName: 'João Pereira',
-          clientEmail: 'joao@email.com',
-          managerUserId: 'demo-user-456',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      ]);
-    }
-
     const querySnapshot = await getDocs(
       query(collection(db, 'projects'), orderBy('createdAt', 'desc'))
     );
@@ -277,22 +182,12 @@ export const projectService = {
   },
 
   async getProject(id: string) {
-    if (isDemoMode()) {
-      const projects = await this.getProjects();
-      return projects.find(p => p.id === id) || null;
-    }
-
     const docRef = doc(db, 'projects', id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? fromFirestoreData(docSnap) : null;
   },
 
   async updateProject(id: string, data: any) {
-    if (isDemoMode()) {
-      console.log('Demo mode: Project update simulated', { id, data });
-      return Promise.resolve({ id, ...data, updatedAt: new Date() });
-    }
-
     const docRef = doc(db, 'projects', id);
     const updateData = { ...data, updatedAt: new Date() };
     await updateDoc(docRef, toFirestoreData(updateData));
@@ -300,11 +195,6 @@ export const projectService = {
   },
 
   async deleteProject(id: string) {
-    if (isDemoMode()) {
-      console.log('Demo mode: Project deletion simulated', { id });
-      return Promise.resolve({ id });
-    }
-
     return await runTransaction(db, async (transaction) => {
       const projectRef = doc(db, 'projects', id);
       
@@ -334,105 +224,7 @@ export const projectService = {
 
 // Task management functions
 export const taskService = {
-  // Synchronous task filtering for demo mode
-  getTasksSync(filters = {}) {
-    const demoTasks = [
-      {
-        id: 'demo-task-1',
-        title: 'Análise de Projeto Stand Imobiliário',
-        description: 'Realizar análise inicial do projeto para stand imobiliário',
-        status: 'aberta',
-        priority: 'alta',
-        projectId: '1',
-        assignedUserId: 'demo-user-123',
-        createdUserId: 'demo-user-123',
-        estimatedHours: 8,
-        actualHours: 0,
-        dueDate: '2025-08-15',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 'demo-task-2',
-        title: 'Desenvolvimento de Conceito Arquitetônico',
-        description: 'Criar conceito inicial para projeto residencial',
-        status: 'em_andamento',
-        priority: 'media',
-        projectId: '2',
-        assignedUserId: 'demo-user-456',
-        createdUserId: 'demo-user-123',
-        estimatedHours: 12,
-        actualHours: 4,
-        dueDate: '2025-08-20',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 'demo-task-3',
-        title: 'Revisão de Documentação Técnica',
-        description: 'Revisar e atualizar documentação do projeto',
-        status: 'concluida',
-        priority: 'baixa',
-        projectId: '1',
-        assignedUserId: 'demo-user-456',
-        createdUserId: 'demo-user-123',
-        estimatedHours: 4,
-        actualHours: 3.5,
-        dueDate: '2025-08-10',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 'demo-task-4',
-        title: 'Preparação de Apresentação Final',
-        description: 'Preparar apresentação para o cliente final',
-        status: 'cancelada',
-        priority: 'critica',
-        projectId: '2',
-        assignedUserId: 'demo-user-123',
-        createdUserId: 'demo-user-456',
-        estimatedHours: 6,
-        actualHours: 1,
-        dueDate: '2025-08-12',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-    ];
-
-    let filteredTasks = [...demoTasks];
-    
-    if (filters.projectId) {
-      filteredTasks = filteredTasks.filter(task => task.projectId === filters.projectId);
-    }
-    if (filters.status) {
-      filteredTasks = filteredTasks.filter(task => task.status === filters.status);
-    }
-    if (filters.assigneeId) {
-      filteredTasks = filteredTasks.filter(task => task.assignedUserId === filters.assigneeId);
-    }
-    if (filters.month && filters.year) {
-      filteredTasks = filteredTasks.filter(task => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return dueDate.getMonth() === filters.month - 1 && dueDate.getFullYear() === filters.year;
-      });
-    }
-    
-    return filteredTasks;
-  },
   async addTask(taskData: any) {
-    if (isDemoMode()) {
-      const newTask = {
-        ...taskData,
-        id: `demo-task-${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      console.log('Demo mode: Task created', newTask);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return Promise.resolve(newTask);
-    }
-
     // Validate projectId is required
     if (!taskData.projectId) {
       throw new Error('projectId é obrigatório para criar uma tarefa');
@@ -460,93 +252,6 @@ export const taskService = {
   },
 
   async getTasks(filters = {}) {
-    if (isDemoMode()) {
-      const demoTasks = [
-        {
-          id: 'demo-task-1',
-          title: 'Análise de Projeto Stand Imobiliário',
-          description: 'Realizar análise inicial do projeto para stand imobiliário',
-          status: 'aberta',
-          priority: 'alta',
-          projectId: '1',
-          assignedUserId: 'demo-user-123',
-          createdUserId: 'demo-user-123',
-          estimatedHours: 8,
-          actualHours: 0,
-          dueDate: '2025-08-15',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'demo-task-2',
-          title: 'Desenvolvimento de Conceito Arquitetônico',
-          description: 'Criar conceito inicial para projeto residencial',
-          status: 'em_andamento',
-          priority: 'media',
-          projectId: '2',
-          assignedUserId: 'demo-user-456',
-          createdUserId: 'demo-user-123',
-          estimatedHours: 12,
-          actualHours: 4,
-          dueDate: '2025-08-20',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'demo-task-3',
-          title: 'Revisão de Documentação Técnica',
-          description: 'Revisar e atualizar documentação do projeto',
-          status: 'concluida',
-          priority: 'baixa',
-          projectId: '1',
-          assignedUserId: 'demo-user-456',
-          createdUserId: 'demo-user-123',
-          estimatedHours: 4,
-          actualHours: 3.5,
-          dueDate: '2025-08-10',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'demo-task-4',
-          title: 'Preparação de Apresentação Final',
-          description: 'Preparar apresentação para o cliente final',
-          status: 'cancelada',
-          priority: 'critica',
-          projectId: '2',
-          assignedUserId: 'demo-user-123',
-          createdUserId: 'demo-user-456',
-          estimatedHours: 6,
-          actualHours: 1,
-          dueDate: '2025-08-12',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      ];
-
-      // Apply filters to demo data
-      let filteredTasks = [...demoTasks];
-      
-      if (filters.projectId) {
-        filteredTasks = filteredTasks.filter(task => task.projectId === filters.projectId);
-      }
-      if (filters.status) {
-        filteredTasks = filteredTasks.filter(task => task.status === filters.status);
-      }
-      if (filters.assigneeId) {
-        filteredTasks = filteredTasks.filter(task => task.assignedUserId === filters.assigneeId);
-      }
-      if (filters.month && filters.year) {
-        filteredTasks = filteredTasks.filter(task => {
-          if (!task.dueDate) return false;
-          const dueDate = new Date(task.dueDate);
-          return dueDate.getMonth() === filters.month - 1 && dueDate.getFullYear() === filters.year;
-        });
-      }
-      
-      return filteredTasks;
-    }
-
     // Performance optimization: Always require at least one indexed filter
     // to avoid full collection scans
     const queryConstraints = [];
@@ -615,23 +320,12 @@ export const taskService = {
   },
 
   async getTask(id: string) {
-    if (isDemoMode()) {
-      const tasks = await this.getTasks();
-      return tasks.find(t => t.id === id) || null;
-    }
-
     const docRef = doc(db, 'tasks', id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? fromFirestoreData(docSnap) : null;
   },
 
   async updateTask(id: string, data: any) {
-    if (isDemoMode()) {
-      console.log('Demo mode: Task updated', { id, data });
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return Promise.resolve({ id, ...data, updatedAt: new Date() });
-    }
-
     // If updating projectId, validate it exists
     if (data.projectId) {
       const projectRef = doc(db, 'projects', data.projectId.toString());
@@ -648,12 +342,6 @@ export const taskService = {
   },
 
   async deleteTask(id: string) {
-    if (isDemoMode()) {
-      console.log('Demo mode: Task deleted', { id });
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return Promise.resolve({ id });
-    }
-
     return await runTransaction(db, async (transaction) => {
       const taskRef = doc(db, 'tasks', id);
       
@@ -688,17 +376,6 @@ export const subscriptionService = {
   // Subscribe to tasks with automatic cleanup
   subscribeToTasks(filters: any, callback: (tasks: any[]) => void): string {
     const subscriptionId = `tasks_${Date.now()}_${Math.random()}`;
-    
-    if (isDemoMode()) {
-      // For demo mode, simulate real-time updates
-      const interval = setInterval(() => {
-        callback(taskService.getTasksSync(filters));
-      }, 5000);
-      
-      this.activeSubscriptions.set(subscriptionId, () => clearInterval(interval));
-      return subscriptionId;
-    }
-
     // Build optimized query with required filters
     const queryConstraints = [];
     let hasIndexedFilter = false;
@@ -775,17 +452,11 @@ export const firebaseService = {
   // Users
 
   async getAllUsers() {
-    if (isDemoMode()) {
-      return Promise.resolve(demoUsers);
-    }
     const querySnapshot = await getDocs(collection(db, 'users'));
     return querySnapshot.docs.map(fromFirestoreData);
   },
 
   async getUser(id: string) {
-    if (isDemoMode()) {
-      return Promise.resolve(demoUsers.find(user => user.id === id) || null);
-    }
     const docRef = doc(db, 'users', id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? fromFirestoreData(docSnap) : null;
@@ -810,10 +481,6 @@ export const firebaseService = {
   },
 
   async updateUser(id: string, data: any) {
-    if (isDemoMode()) {
-      console.log('Demo mode: User update simulated', { id, data });
-      return Promise.resolve();
-    }
     const docRef = doc(db, 'users', id);
     await updateDoc(docRef, toFirestoreData({ ...data, updatedAt: new Date() }));
   },
@@ -885,11 +552,6 @@ export const firebaseService = {
   },
 
   async getTasksByUser(userId: string) {
-    if (isDemoMode()) {
-      const allTasks = await taskService.getTasks();
-      return allTasks.filter(task => task.assignedUserId === userId);
-    }
-
     const querySnapshot = await getDocs(
       query(
         collection(db, 'tasks'),
@@ -995,69 +657,6 @@ export const firebaseService = {
 
   // Dashboard data aggregations
   async getDashboardData() {
-    if (isDemoMode()) {
-      return {
-        totalTasks: 15,
-        completedTasks: 8,
-        activeProjects: 3,
-        totalWorkedHours: 127.5,
-        tasksByStatus: {
-          aberta: 4,
-          em_andamento: 3,
-          concluida: 8,
-          cancelada: 0
-        },
-        tasksByPriority: {
-          baixa: 3,
-          media: 7,
-          alta: 4,
-          critica: 1
-        },
-        tasksEvolution: [
-          { month: 'Jun', tasks: 12 },
-          { month: 'Jul', tasks: 15 },
-          { month: 'Ago', tasks: 15 }
-        ],
-        recentActivities: [
-          {
-            id: 'demo-1',
-            type: 'task_updated',
-            description: 'Tarefa "Desenvolvimento de Conceito" foi concluída',
-            timestamp: new Date(Date.now() - 1000 * 60 * 30),
-            user: 'Admin User'
-          },
-          {
-            id: 'demo-2',
-            type: 'project_created',
-            description: 'Novo projeto "Stand Comercial" foi criado',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-            user: 'Admin User'
-          },
-          {
-            id: 'demo-3',
-            type: 'task_created',
-            description: 'Nova tarefa "Análise Estrutural" foi criada',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
-            user: 'Collaborator'
-          },
-          {
-            id: 'demo-4',
-            type: 'task_updated',
-            description: 'Tarefa "Revisão de Documentação" mudou para Em Andamento',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-            user: 'Admin User'
-          },
-          {
-            id: 'demo-5',
-            type: 'project_updated',
-            description: 'Projeto "Casa dos Sonhos" foi atualizado',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8),
-            user: 'Admin User'
-          }
-        ]
-      };
-    }
-
     try {
       // Parallel queries for efficient data fetching
       const [

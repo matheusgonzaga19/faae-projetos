@@ -35,12 +35,6 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId
   });
 }
 
-// Demo mode check
-const isDemoMode = firebaseConfig.projectId === 'demo-faae-projetos';
-if (isDemoMode) {
-  console.warn('🔥 FIREBASE DEMO MODE - Substitua pelas chaves reais!');
-}
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
