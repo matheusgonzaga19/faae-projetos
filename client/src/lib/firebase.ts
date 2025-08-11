@@ -15,12 +15,12 @@ import { getStorage } from 'firebase/storage';
 
 // Firebase configuration - replace with your actual Firebase config
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDSFpzXfmUNqeP1jpJsjf1hl9SnOUcfVKQ",
+  authDomain: "faae-projetos-teste.firebaseapp.com",
+  projectId: "faae-projetos-teste",
+  storageBucket: "faae-projetos-teste.firebasestorage.app",
+  messagingSenderId: "794010255592",
+  appId: "1:794010255592:web:3f2a532512c14e88fbc95d"
 };
 
 // Validate Firebase configuration
