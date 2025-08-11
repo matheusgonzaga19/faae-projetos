@@ -4,13 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { registerUser } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, Shield } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
 const registrationSchema = z.object({
   firstName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -18,7 +17,6 @@ const registrationSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   confirmPassword: z.string(),
-  role: z.enum(['admin', 'colaborador']).default('colaborador'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Senhas não coincidem',
   path: ['confirmPassword'],
@@ -52,7 +50,6 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'colaborador',
     },
   });
 
@@ -67,17 +64,16 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
   const handleRegister = async (data: RegistrationData) => {
     setIsLoading(true);
     try {
-      const result = await registerUser(
+      await registerUser(
         data.email,
         data.password,
         data.firstName,
-        data.lastName,
-        data.role
+        data.lastName
       );
 
       toast({
         title: 'Usuário registrado com sucesso!',
-        description: `${data.firstName} ${data.lastName} foi adicionado como ${data.role}.`,
+        description: `${data.firstName} ${data.lastName} foi adicionado como Colaborador.`,
       });
 
       registerForm.reset();
@@ -146,8 +142,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                       <FormLabel>Nome</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input {...field} placeholder="Nome" className="pl-10" />
+                          <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input placeholder="Nome" className="pl-10" {...field} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -162,8 +158,8 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                       <FormLabel>Sobrenome</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input {...field} placeholder="Sobrenome" className="pl-10" />
+                          <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                          <Input placeholder="Sobrenome" className="pl-10" {...field} />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -180,35 +176,16 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input {...field} type="email" placeholder="email@exemplo.com" className="pl-10" />
+                        <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          type="email"
+                          placeholder="email@exemplo.com"
+                          className="pl-10"
+                          autoComplete="email"
+                          {...field}
+                        />
                       </div>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={registerForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Função</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <div className="flex items-center space-x-2">
-                            <Shield className="h-4 w-4 text-gray-400" />
-                            <SelectValue placeholder="Selecione a função" />
-                          </div>
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="colaborador">Colaborador</SelectItem>
-                        <SelectItem value="admin">Administrador</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -222,12 +199,12 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                          {...field}
                           type={showPassword ? 'text' : 'password'}
                           placeholder="********"
                           className="pl-10 pr-10"
+                          {...field}
                         />
                         <button
                           type="button"
@@ -251,12 +228,12 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                     <FormLabel>Confirmar Senha</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                          {...field}
                           type={showConfirmPassword ? 'text' : 'password'}
                           placeholder="********"
                           className="pl-10 pr-10"
+                          {...field}
                         />
                         <button
                           type="button"
@@ -286,12 +263,18 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input {...field} type="email" placeholder="email@exemplo.com" className="pl-10" />
-                      </div>
-                    </FormControl>
+                  <FormControl>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="email"
+                        placeholder="email@exemplo.com"
+                        className="pl-10"
+                        autoComplete="email"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -303,16 +286,16 @@ export default function UserRegistration({ onClose }: UserRegistrationProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          {...field}
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="********"
-                          className="pl-10 pr-10"
-                        />
-                        <button
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="********"
+                        className="pl-10 pr-10"
+                        {...field}
+                      />
+                      <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
