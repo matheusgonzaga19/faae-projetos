@@ -53,7 +53,13 @@ export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
 
 // Email/Password authentication
-export const registerUser = async (email: string, password: string, firstName: string, lastName: string, role: string = 'colaborador') => {
+export const registerUser = async (
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+  role: 'admin' | 'collaborator' = 'collaborator'
+) => {
   try {
     // Create user account
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);

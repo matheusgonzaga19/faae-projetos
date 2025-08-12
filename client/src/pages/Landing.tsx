@@ -4,10 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import UserRegistration from "@/components/Auth/UserRegistration";
-import { signInWithGoogle } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast";
 import FAAELogo from "@/components/FAAELogo";
-import { useAuth } from "@/hooks/useAuth";
 import { 
   Building, 
   Calendar, 
@@ -18,42 +15,11 @@ import {
   Clock,
   Award,
   Zap,
-  LogIn,
   UserPlus
 } from "lucide-react";
 
 export default function Landing() {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const { toast } = useToast();
-  const { signIn, isLoading } = useAuth();
-  const [isSigningIn, setIsSigningIn] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao FAAE Projetos.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro no login",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSignIn = async () => {
-    setIsSigningIn(true);
-    try {
-      await signIn();
-    } catch (error) {
-      console.error('Login error:', error);
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
@@ -64,15 +30,6 @@ export default function Landing() {
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <FAAELogo width={200} height={60} />
             <div className="flex items-center space-x-4">
-              <Button 
-                onClick={handleGoogleSignIn}
-                disabled={isSigningIn || isLoading}
-                className="bg-white text-blue-600 hover:bg-blue-50"
-              >
-                <LogIn className="h-4 w-4 mr-2" />
-                {isSigningIn ? 'Conectando...' : 'Entrar com Google'}
-              </Button>
-              
               <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="bg-transparent text-white border-white hover:bg-white hover:text-blue-600">
@@ -111,13 +68,12 @@ export default function Landing() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                  <Button 
+                  <Button
                     size="lg"
-                    onClick={handleSignIn}
-                    disabled={isSigningIn || isLoading}
+                    onClick={() => setShowLoginDialog(true)}
                     className="bg-yellow-400 text-blue-900 hover:bg-yellow-300 font-semibold px-8 py-4"
                   >
-                    {isSigningIn ? 'Conectando...' : 'Entrar com Google'}
+                    Entrar
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </div>
@@ -263,9 +219,9 @@ export default function Landing() {
           <p className="text-xl text-gray-600 mb-8">
             Junte-se aos profissionais que já transformaram seus processos com nossa plataforma
           </p>
-          <Button 
+          <Button
             size="lg"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => setShowLoginDialog(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4"
           >
             Começar Agora
