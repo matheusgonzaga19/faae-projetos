@@ -6,7 +6,6 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     signIn,
-    signInWithEmail,
     signOut,
     updateUserRole,
     error
@@ -17,7 +16,6 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     signIn,
-    signInWithEmail,
     signOut,
     updateUserRole,
     error,

@@ -5,14 +5,10 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile,
   User
 } from 'firebase/auth';
 import { getFirestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { DEFAULT_ALLOWED_SECTIONS, Section } from '@/types/auth';
 
 // Firebase configuration - replace with your actual Firebase config
 const firebaseConfig = {
@@ -51,58 +47,6 @@ googleProvider.addScope('profile');
 // Auth functions
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
-
-// Email/Password authentication
-export const registerUser = async (email: string, password: string, firstName: string, lastName: string, role: string = 'colaborador') => {
-  try {
-    // Create user account
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Update display name
-    await updateProfile(user, {
-      displayName: `${firstName} ${lastName}`.trim()
-    });
-    
-    // Create user document in Firestore
-    const allowedSections: Section[] =
-      role === 'admin'
-        ? [...DEFAULT_ALLOWED_SECTIONS, 'users']
-        : [...DEFAULT_ALLOWED_SECTIONS];
-
-    const userData = {
-      id: user.uid,
-      email: user.email,
-      firstName,
-      lastName,
-      role,
-      allowedSections,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      profileImageUrl: user.photoURL || null
-    };
-    
-    // Save to Firestore via our service
-    const { firebaseService } = await import('@/services/firebaseService');
-    await firebaseService.createUser(userData);
-    
-    return { user, userData };
-  } catch (error: any) {
-    console.error('Error registering user:', error);
-    throw new Error(getAuthErrorMessage(error.code));
-  }
-};
-
-export const signInWithEmail = async (email: string, password: string) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error: any) {
-    console.error('Error signing in:', error);
-    throw new Error(getAuthErrorMessage(error.code));
-  }
-};
 
 // Helper function to translate auth error codes to Portuguese
 const getAuthErrorMessage = (errorCode: string): string => {

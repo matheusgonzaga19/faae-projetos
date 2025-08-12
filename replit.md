@@ -127,12 +127,9 @@ Changelog:
 ## Recent Changes
 
 ### Firebase Auth Integration Complete (August 9, 2025)
-- **Email/Password Authentication**: Implemented registerUser() function with role assignment
 - **User Management System**: Created AuthContext with role-based access control
 - **Security Rules**: Documented Firestore security rules for assigneeId-based access
 - **Task Assignment**: Added assigneeId field to tasks with user filtering in Kanban board
-- **User Registration Component**: Built comprehensive login/register interface with form validation
-- **Landing Page Enhancement**: Added authentication options (Google + Email/Password)
 - **Optimized Queries**: Created useTasksOptimized hook to prevent full collection scans
 - **Role System**: Implemented admin vs colaborador roles with proper permissions
 - **User Filtering**: Added "Todos os usuários" and assignee-specific filters in Dashboard and Kanban
