@@ -8,7 +8,7 @@ interface UserData {
   email: string;
   firstName?: string;
   lastName?: string;
-  role: 'admin' | 'collaborator';
+  role: 'admin' | 'colaborador';
   isActive: boolean;
   profileImageUrl?: string;
   createdAt: Date;
@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               email: user.email || '',
               firstName: user.displayName?.split(' ')[0] || '',
               lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
-              role: 'collaborator' as const,
+              role: 'colaborador' as const,
               isActive: true,
               profileImageUrl: user.photoURL || undefined,
               createdAt: new Date(),
