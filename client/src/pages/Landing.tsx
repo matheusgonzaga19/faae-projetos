@@ -2,28 +2,24 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import UserRegistration from "@/components/Auth/UserRegistration";
 import { signInWithGoogle } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import FAAELogo from "@/components/FAAELogo";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  Building, 
-  Calendar, 
-  Users, 
-  CheckCircle, 
+  Building,
+  Calendar,
+  Users,
+  CheckCircle,
   ArrowRight,
   Target,
   Clock,
   Award,
   Zap,
-  LogIn,
-  UserPlus
+  LogIn
 } from "lucide-react";
 
 export default function Landing() {
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const { toast } = useToast();
   const { signIn, isLoading } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -64,7 +60,7 @@ export default function Landing() {
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <FAAELogo width={200} height={60} />
             <div className="flex items-center space-x-4">
-              <Button 
+              <Button
                 onClick={handleGoogleSignIn}
                 disabled={isSigningIn || isLoading}
                 className="bg-white text-blue-600 hover:bg-blue-50"
@@ -72,21 +68,6 @@ export default function Landing() {
                 <LogIn className="h-4 w-4 mr-2" />
                 {isSigningIn ? 'Conectando...' : 'Entrar com Google'}
               </Button>
-              
-              <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="bg-transparent text-white border-white hover:bg-white hover:text-blue-600">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Registrar / Login
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Acesso ao FAAE Projetos</DialogTitle>
-                  </DialogHeader>
-                  <UserRegistration onClose={() => setShowLoginDialog(false)} />
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
         </header>

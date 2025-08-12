@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db, onAuthStateChange, signInWithGoogle, signInWithEmail, logOut } from '@/lib/firebase';
+import { auth, db, onAuthStateChange, signInWithGoogle, logOut } from '@/lib/firebase';
 import type { FirebaseUser, Section } from '@/types/auth';
 import { DEFAULT_ALLOWED_SECTIONS } from '@/types/auth';
 
@@ -75,16 +75,6 @@ export function useFirebaseAuth() {
     }
   };
 
-  const signInWithEmailPassword = async (email: string, password: string) => {
-    try {
-      setError(null);
-      await signInWithEmail(email, password);
-    } catch (err) {
-      console.error('Email sign in error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
-    }
-  };
-
   const signOutUser = async () => {
     try {
       setError(null);
@@ -125,7 +115,6 @@ export function useFirebaseAuth() {
     error,
     isAuthenticated: !!user,
     signIn,
-    signInWithEmail: signInWithEmailPassword,
     signOut: signOutUser,
     updateUserRole,
   };
