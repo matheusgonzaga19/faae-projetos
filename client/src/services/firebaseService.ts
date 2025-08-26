@@ -563,7 +563,11 @@ export const firebaseService = {
   },
 
   async createTask(taskData: any) {
-    return await taskService.addTask(taskData);
+    const data = { ...taskData };
+    if (!data.assigneeId || data.assigneeId === 'none') {
+      delete data.assigneeId;
+    }
+    return await taskService.addTask(data);
   },
 
   async updateTask(id: string, data: any) {

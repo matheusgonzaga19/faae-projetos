@@ -140,7 +140,11 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
   });
 
   const onSubmit = (data: TaskFormData) => {
-    createTaskMutation.mutate(data);
+    const formattedData = {
+      ...data,
+      assigneeId: data.assigneeId === 'none' ? undefined : data.assigneeId,
+    };
+    createTaskMutation.mutate(formattedData);
   };
 
   const handleClose = () => {
@@ -222,9 +226,9 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
                     </FormControl>
                     <SelectContent>
                       {activeProjects.length === 0 ? (
-                        <SelectItem value="" disabled>
+                        <div className="p-2 text-muted-foreground">
                           Nenhum projeto ativo encontrado
-                        </SelectItem>
+                        </div>
                       ) : (
                         activeProjects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
@@ -382,7 +386,7 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Não atribuída</SelectItem>
+                        <SelectItem value="none">Não atribuída</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {getUserDisplayName(user)}
