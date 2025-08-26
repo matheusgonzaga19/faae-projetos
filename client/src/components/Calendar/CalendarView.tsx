@@ -44,6 +44,14 @@ interface User {
   lastName?: string;
 }
 
+interface Filters {
+  projectId?: string;
+  assigneeId?: string;
+  status?: TaskStatus;
+  month: number;
+  year: number;
+}
+
 const STATUS_COLORS = {
   aberta: 'bg-yellow-500',
   em_andamento: 'bg-blue-500',
@@ -75,10 +83,10 @@ const PRIORITY_LABELS = {
 export default function CalendarView() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'calendar' | 'gantt'>('calendar');
-  const [filters, setFilters] = useState({
-    projectId: '',
-    assigneeId: '',
-    status: '' as TaskStatus | '',
+  const [filters, setFilters] = useState<Filters>({
+    projectId: undefined,
+    assigneeId: undefined,
+    status: undefined,
     month: selectedDate.getMonth() + 1,
     year: selectedDate.getFullYear(),
   });
@@ -192,18 +200,21 @@ export default function CalendarView() {
     return user.email;
   };
 
-  const handleFilterChange = (filterType: string, value: string) => {
+  const handleFilterChange = (
+    filterType: 'projectId' | 'assigneeId' | 'status',
+    value: string
+  ) => {
     setFilters(prev => ({
       ...prev,
-      [filterType]: value
+      [filterType]: value === 'all' ? undefined : value,
     }));
   };
 
   const clearFilters = () => {
     setFilters({
-      projectId: '',
-      assigneeId: '',
-      status: '' as TaskStatus | '',
+      projectId: undefined,
+      assigneeId: undefined,
+      status: undefined,
       month: selectedDate.getMonth() + 1,
       year: selectedDate.getFullYear(),
     });
@@ -265,12 +276,12 @@ export default function CalendarView() {
             {/* Project Filter */}
             <div>
               <label className="text-sm font-medium mb-2 block">Projeto</label>
-              <Select value={filters.projectId} onValueChange={(value) => handleFilterChange('projectId', value)}>
+              <Select value={filters.projectId ?? 'all'} onValueChange={(value) => handleFilterChange('projectId', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os projetos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os projetos</SelectItem>
+                  <SelectItem value="all">Todos os projetos</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -283,12 +294,12 @@ export default function CalendarView() {
             {/* User Filter */}
             <div>
               <label className="text-sm font-medium mb-2 block">Responsável</label>
-              <Select value={filters.assigneeId} onValueChange={(value) => handleFilterChange('assigneeId', value)}>
+              <Select value={filters.assigneeId ?? 'all'} onValueChange={(value) => handleFilterChange('assigneeId', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os usuários" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os usuários</SelectItem>
+                  <SelectItem value="all">Todos os usuários</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {getUserDisplayName(user.id)}
@@ -301,12 +312,12 @@ export default function CalendarView() {
             {/* Status Filter */}
             <div>
               <label className="text-sm font-medium mb-2 block">Status</label>
-              <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+              <Select value={filters.status ?? 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   <SelectItem value="aberta">Aberta</SelectItem>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
                   <SelectItem value="concluida">Concluída</SelectItem>
