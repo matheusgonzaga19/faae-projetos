@@ -72,9 +72,21 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   projects: Project[];
+  task?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    projectId: string;
+    priority: 'baixa' | 'media' | 'alta' | 'critica';
+    status: 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
+    dueDate?: Date | string | null;
+    estimatedHours?: number | null;
+    assigneeId?: string | null;
+    actualHours?: number | null;
+  };
 }
 
-export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps) {
+export default function TaskModal({ isOpen, onClose, projects, task }: TaskModalProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -100,6 +112,36 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
       actualHours: 0,
     },
   });
+
+  // Prefill when editing
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (task) {
+      form.reset({
+        title: task.title || '',
+        description: task.description || '',
+        projectId: task.projectId || '',
+        priority: (task.priority as any) || 'media',
+        status: (task.status as any) || 'aberta',
+        dueDate: task.dueDate ? new Date(task.dueDate as any) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        estimatedHours: typeof task.estimatedHours === 'number' ? task.estimatedHours : 1,
+        assigneeId: task.assigneeId || '',
+        actualHours: typeof task.actualHours === 'number' ? task.actualHours : 0,
+      });
+    } else {
+      form.reset({
+        title: '',
+        description: '',
+        projectId: '',
+        priority: 'media',
+        status: 'aberta',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        estimatedHours: 1,
+        assigneeId: '',
+        actualHours: 0,
+      });
+    }
+  }, [isOpen, task]);
 
   // Create task mutation
   const createTaskMutation = useMutation({
@@ -139,12 +181,45 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
     },
   });
 
+  // Update task (edit mode)
+  const updateTaskMutation = useMutation({
+    mutationFn: async (taskData: TaskFormData) => {
+      if (!task) throw new Error('Tarefa não encontrada');
+      const updated = {
+        title: taskData.title,
+        description: taskData.description || '',
+        projectId: taskData.projectId,
+        priority: taskData.priority,
+        status: taskData.status,
+        dueDate: taskData.dueDate,
+        estimatedHours: taskData.estimatedHours,
+        assigneeId: taskData.assigneeId || null,
+        actualHours: taskData.actualHours || 0,
+        updatedAt: new Date(),
+      };
+      return await firebaseService.updateTask(task.id, updated);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/enhanced'] });
+      toast({ title: 'Sucesso', description: 'Tarefa atualizada com sucesso!' });
+      handleClose();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Erro ao atualizar', description: error.message || 'Erro desconhecido', variant: 'destructive' });
+    },
+  });
+
   const onSubmit = (data: TaskFormData) => {
     const formattedData = {
       ...data,
       assigneeId: data.assigneeId === 'none' ? undefined : data.assigneeId,
     };
-    createTaskMutation.mutate(formattedData);
+    if (task?.id) {
+      updateTaskMutation.mutate(formattedData);
+    } else {
+      createTaskMutation.mutate(formattedData);
+    }
   };
 
   const handleClose = () => {
@@ -167,7 +242,7 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Criar Nova Tarefa</DialogTitle>
+          <DialogTitle>{task ? 'Editar Tarefa' : 'Criar Nova Tarefa'}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -429,18 +504,18 @@ export default function TaskModal({ isOpen, onClose, projects }: TaskModalProps)
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                disabled={createTaskMutation.isPending}
+                disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={createTaskMutation.isPending || activeProjects.length === 0}
+                disabled={createTaskMutation.isPending || updateTaskMutation.isPending || activeProjects.length === 0}
               >
-                {createTaskMutation.isPending && (
+                {(createTaskMutation.isPending || updateTaskMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Criar Tarefa
+                {task ? 'Salvar Alterações' : 'Criar Tarefa'}
               </Button>
             </div>
           </form>

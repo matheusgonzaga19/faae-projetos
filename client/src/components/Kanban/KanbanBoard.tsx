@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, Clock, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Plus, Calendar, Clock, User, AlertTriangle, RefreshCw, Edit2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
 import TaskModal from './TaskModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
 type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica';
@@ -58,6 +59,9 @@ const PRIORITY_LABELS = {
 
 export default function KanbanBoard() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const { toast } = useToast();
@@ -114,6 +118,22 @@ export default function KanbanBoard() {
     },
   });
 
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await firebaseService.deleteTask(taskId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/enhanced'] });
+      toast({ title: 'Tarefa excluída', description: 'A tarefa foi removida com sucesso.' });
+      setShowDeleteConfirm(false);
+      setTaskToDelete(null);
+    },
+    onError: (error) => {
+      toast({ title: 'Erro', description: (error as Error).message || 'Falha ao excluir tarefa', variant: 'destructive' });
+    }
+  });
+
   // Group tasks by status and filter by project/user if selected
   const getTasksByStatus = (status: TaskStatus) => {
     return tasks.filter(task => {
@@ -122,6 +142,16 @@ export default function KanbanBoard() {
       const userMatch = !selectedUserId || task.assigneeId === selectedUserId;
       return statusMatch && projectMatch && userMatch;
     });
+  };
+
+  const handleEdit = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleDelete = (task: Task) => {
+    setTaskToDelete(task);
+    setShowDeleteConfirm(true);
   };
 
   // Handle drag end
@@ -257,12 +287,20 @@ export default function KanbanBoard() {
                                   <CardTitle className="text-sm font-medium line-clamp-2">
                                     {task.title}
                                   </CardTitle>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`ml-2 text-xs ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}`}
-                                  >
-                                    {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
-                                  </Badge>
+                                  <div className="flex items-center gap-1 ml-2">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}`}
+                                    >
+                                      {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
+                                    </Badge>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(task)}>
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(task)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </CardHeader>
                               
@@ -330,8 +368,20 @@ export default function KanbanBoard() {
       {/* Task Creation Modal */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
         projects={projects}
+        task={editingTask || undefined}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Excluir Tarefa"
+        description={`Tem certeza que deseja excluir a tarefa "${taskToDelete?.title ?? ''}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={() => taskToDelete && deleteTaskMutation.mutate(taskToDelete.id)}
+        variant="destructive"
       />
     </div>
   );

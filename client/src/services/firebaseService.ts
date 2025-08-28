@@ -312,17 +312,25 @@ export const taskService = {
       hasIndexedFilter = true;
     }
 
-    // If no indexed filters are provided, return empty array to prevent full scans
+    // If no indexed filters are provided, allow a limited, ordered query (used by Kanban)
     if (!hasIndexedFilter) {
-      console.warn('getTasks called without indexed filters - returning empty array to prevent full collection scan');
-      return [];
+      // Fallback: order by createdAt and apply a safe limit
+      queryConstraints.push(orderBy('createdAt', 'desc'));
+      if (filters.limit) {
+        queryConstraints.push(limit(filters.limit));
+      } else {
+        queryConstraints.push(limit(100));
+      }
     }
 
     // Add appropriate ordering based on use case
     if (filters.orderByDueDate) {
       queryConstraints.push(orderBy('dueDate', 'asc'));
     } else {
-      queryConstraints.push(orderBy('createdAt', 'desc'));
+      // Only add createdAt ordering if not already added by the fallback above
+      if (!queryConstraints.some((c: any) => c.type === 'orderBy' || c._methodName === 'orderBy')) {
+        queryConstraints.push(orderBy('createdAt', 'desc'));
+      }
     }
 
     // Limit results to prevent excessive data transfer
