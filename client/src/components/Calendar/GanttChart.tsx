@@ -119,7 +119,7 @@ export default function GanttChart({ projects, tasks }: GanttChartProps) {
     return { series, categories };
   }, [projects, tasks]);
 
-  const options = {
+  const options: import('apexcharts').ApexOptions = {
     chart: {
       type: 'rangeBar',
       height: 350,
@@ -150,8 +150,8 @@ export default function GanttChart({ projects, tasks }: GanttChartProps) {
     xaxis: {
       type: 'datetime',
       labels: {
-        formatter: function (val: number) {
-          return format(new Date(val), 'dd/MM', { locale: ptBR });
+        formatter: function (_value: string, timestamp?: number) {
+          return timestamp ? format(new Date(timestamp), 'dd/MM', { locale: ptBR }) : String(_value);
         }
       }
     },

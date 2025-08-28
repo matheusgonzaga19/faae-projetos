@@ -15,7 +15,7 @@ export const TASK_PRIORITY = {
 export const USER_ROLES = {
   ADMIN: 'admin',
   PROJECT_MANAGER: 'project_manager',
-  SENIOR_ARCHITECT: 'senior_architect', 
+  SENIOR_ARCHITECT: 'senior_architect',
   JUNIOR_ARCHITECT: 'junior_architect',
   BUDGET_SPECIALIST: 'budget_specialist',
   COLLABORATOR: 'collaborator',
@@ -31,7 +31,7 @@ export const PROJECT_TYPES = {
 
 export const PROJECT_STAGES = {
   BRIEFING: 'briefing',
-  CONCEITO: 'conceito', 
+  CONCEITO: 'conceito',
   PROJETO: 'projeto',
   APROVACAO: 'aprovacao',
   ORCAMENTO: 'orcamento',
@@ -126,10 +126,11 @@ export const FILE_ICONS = {
 };
 
 export const AI_SUGGESTIONS = [
-  "Tarefas em atraso",
-  "Progresso da equipe",
-  "Próximos prazos",
-  "Projetos ativos",
-  "Eficiência geral",
-  "Tarefas por prioridade",
+  'Tarefas em atraso',
+  'Progresso da equipe',
+  'Próximos prazos',
+  'Projetos ativos',
+  'Eficiência geral',
+  'Tarefas por prioridade',
 ];
+

@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { filesService } from './firestore';
+import { firebaseService } from './firebaseService';
 
 export interface UploadResult {
   id: string;
@@ -42,7 +42,7 @@ export const firebaseStorageService = {
       const downloadURL = await getDownloadURL(snapshot.ref);
 
       // Save file metadata to Firestore
-      const fileMetadata = await filesService.addFile({
+      const fileMetadata = await firebaseService.addFile({
         name: file.name,
         size: file.size,
         type: file.type,
@@ -69,8 +69,7 @@ export const firebaseStorageService = {
   async deleteFile(fileId: string): Promise<void> {
     try {
       // Get file metadata from Firestore
-      const files = await filesService.getFilesByTask(''); // We'll need to adjust this
-      const file = files.find(f => f.id === fileId);
+      const file = await firebaseService.getFileById(fileId);
       
       if (!file) {
         throw new Error('File not found');
@@ -81,7 +80,7 @@ export const firebaseStorageService = {
       await deleteObject(fileRef);
 
       // Delete metadata from Firestore
-      // We'll need to add a delete method to filesService
+      await firebaseService.deleteFile(fileId);
     } catch (error) {
       console.error('Error deleting file:', error);
       throw new Error('Failed to delete file');

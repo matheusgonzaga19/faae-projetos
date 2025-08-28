@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from '@tanstack/react-query';
 import { firebaseService, migrationService } from '@/services/firebaseService';
+import { auth } from '@/lib/firebase';
 
 // Legacy API compatibility function - routes mutations to Firestore
 export async function apiRequest(
@@ -12,9 +13,9 @@ export async function apiRequest(
     const path = url.replace('/api/', '');
     const segments = path.split('/');
     
-    switch (method.toUpperCase()) {
-      case 'POST':
-        return await handlePost(segments, data);
+  switch (method.toUpperCase()) {
+    case 'POST':
+      return await handlePost(segments, data);
       case 'PUT':
         return await handlePut(segments, data);
       case 'DELETE':
@@ -42,7 +43,14 @@ async function handlePost(segments: string[], data: any) {
       }
       break;
     case 'auth':
-      // Auth endpoints are handled by Firebase Auth directly
+      if (segments[1] === 'set-initial-type') {
+        const user = auth.currentUser;
+        if (!user) throw new Error('Usuário não autenticado');
+        const role = data?.userType === 'admin' ? 'admin' : 'collaborator';
+        await firebaseService.upsertUser(user.uid, { role });
+        return { userId: user.uid, role };
+      }
+      // Other auth endpoints are handled by Firebase Auth directly
       break;
   }
   throw new Error(`Unsupported POST endpoint: ${segments.join('/')}`);

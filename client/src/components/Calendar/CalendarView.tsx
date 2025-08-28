@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Calendar from 'react-calendar';
-import type { Value } from 'react-calendar/dist/cjs/shared/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -376,7 +375,7 @@ export default function CalendarView() {
                 }
               `}</style>
               <Calendar
-                onChange={(value: Value) => {
+                onChange={(value: any) => {
                   if (value instanceof Date) {
                     setSelectedDate(value);
                   }

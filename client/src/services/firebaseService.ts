@@ -631,6 +631,17 @@ export const firebaseService = {
     return { ...data, id: docRef.id };
   },
 
+  async getFileById(fileId: string) {
+    const docRef = doc(db, 'files', fileId);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? fromFirestoreData(snap) : null;
+  },
+
+  async deleteFile(fileId: string) {
+    const docRef = doc(db, 'files', fileId);
+    await deleteDoc(docRef);
+  },
+
   // Dashboard stats
   async getStats() {
     const tasksSnapshot = await getDocs(collection(db, 'tasks'));

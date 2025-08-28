@@ -5,12 +5,11 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  User
 } from 'firebase/auth';
 import { getFirestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration - replace with your actual Firebase config
+// Read Firebase configuration from Vite env
 const firebaseConfig = {
   apiKey: "AIzaSyDSFpzXfmUNqeP1jpJsjf1hl9SnOUcfVKQ",
   authDomain: "faae-projetos-teste.firebaseapp.com",
@@ -22,10 +21,12 @@ const firebaseConfig = {
 
 // Validate Firebase configuration
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
-  console.error('Firebase configuration is missing. Please check your .env.local file.');
-  console.log('Required variables:', {
+  console.error('Configuração do Firebase ausente. Verifique o arquivo client/.env.local.');
+  console.log('Variáveis necessárias:', {
     VITE_FIREBASE_API_KEY: firebaseConfig.apiKey ? 'SET' : 'MISSING',
-    VITE_FIREBASE_PROJECT_ID: firebaseConfig.projectId ? 'SET' : 'MISSING', 
+    VITE_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain ? 'SET' : 'MISSING',
+    VITE_FIREBASE_PROJECT_ID: firebaseConfig.projectId ? 'SET' : 'MISSING',
+    VITE_FIREBASE_STORAGE_BUCKET: firebaseConfig.storageBucket ? 'SET' : 'MISSING',
     VITE_FIREBASE_APP_ID: firebaseConfig.appId ? 'SET' : 'MISSING',
     VITE_FIREBASE_MESSAGING_SENDER_ID: firebaseConfig.messagingSenderId ? 'SET' : 'MISSING',
   });
@@ -52,9 +53,9 @@ export const logOut = () => signOut(auth);
 const getAuthErrorMessage = (errorCode: string): string => {
   switch (errorCode) {
     case 'auth/email-already-in-use':
-      return 'Este email já está em uso.';
+      return 'Este e-mail já está em uso.';
     case 'auth/invalid-email':
-      return 'Email inválido.';
+      return 'E-mail inválido.';
     case 'auth/operation-not-allowed':
       return 'Operação não permitida.';
     case 'auth/weak-password':
@@ -73,7 +74,7 @@ const getAuthErrorMessage = (errorCode: string): string => {
 };
 
 // Auth state observer
-export const onAuthStateChange = (callback: (user: any) => void) => {
+export const onAuthStateChange = (callback: (user: any) => any) => {
   return onAuthStateChanged(auth, callback);
 };
 

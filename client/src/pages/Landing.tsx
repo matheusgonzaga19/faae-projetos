@@ -246,7 +246,7 @@ export default function Landing() {
           </p>
           <Button 
             size="lg"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={handleGoogleSignIn}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4"
           >
             Começar Agora
