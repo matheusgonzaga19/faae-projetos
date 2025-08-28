@@ -4,6 +4,7 @@ import { useToast } from "./use-toast";
 import { queryClient } from "@/lib/queryClient";
 
 export function useWebSocket() {
+  const enabled = import.meta.env.VITE_WEBSOCKET_ENABLED === 'true';
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
@@ -130,14 +131,14 @@ export function useWebSocket() {
   };
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (enabled && isAuthenticated && user) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [isAuthenticated, user?.id]);
+  }, [enabled, isAuthenticated, user?.id]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -147,7 +148,7 @@ export function useWebSocket() {
   }, []);
 
   return {
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
+    isConnected: enabled && wsRef.current?.readyState === WebSocket.OPEN,
     disconnect,
     reconnect: connect,
   };

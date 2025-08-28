@@ -27,18 +27,31 @@ const toFirestoreData = (data: any) => {
   if (data.updatedAt instanceof Date) result.updatedAt = Timestamp.fromDate(data.updatedAt);
   if (data.dueDate instanceof Date) result.dueDate = Timestamp.fromDate(data.dueDate);
   if (data.startDate instanceof Date) result.startDate = Timestamp.fromDate(data.startDate);
+  if (data.endDate instanceof Date) result.endDate = Timestamp.fromDate(data.endDate);
   return result;
 };
 
 const fromFirestoreData = (doc: any) => {
   const data = doc.data();
   if (!data) return null;
-  
+
+  const toJsDate = (value: any) => {
+    if (!value) return value;
+    // Firestore Timestamp
+    if (typeof value?.toDate === 'function') return value.toDate();
+    // Already a Date
+    if (value instanceof Date) return value;
+    // String or number
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   const result: any = { ...data, id: doc.id };
-  if (data.createdAt) result.createdAt = data.createdAt.toDate();
-  if (data.updatedAt) result.updatedAt = data.updatedAt.toDate();
-  if (data.dueDate) result.dueDate = data.dueDate.toDate();
-  if (data.startDate) result.startDate = data.startDate.toDate();
+  if (data.createdAt) result.createdAt = toJsDate(data.createdAt);
+  if (data.updatedAt) result.updatedAt = toJsDate(data.updatedAt);
+  if (data.dueDate) result.dueDate = toJsDate(data.dueDate);
+  if (data.startDate) result.startDate = toJsDate(data.startDate);
+  if (data.endDate) result.endDate = toJsDate(data.endDate);
   return result;
 };
 
@@ -160,12 +173,19 @@ export const migrationService = {
 export const projectService = {
   async addProject(projectData: any) {
     const now = new Date();
+    // Normalize incoming payload (form sends strings)
+    const normalizeDate = (v: any) => (typeof v === 'string' && v ? new Date(v) : v || null);
+    const normalizeNumber = (n: any) => (typeof n === 'string' ? (n.trim() ? Number(n) : null) : n);
+
     const data = {
       ...projectData,
       status: projectData.status || 'active',
-      type: projectData.type || 'projeto_arquitetura',
+      type: projectData.type || 'projeto_arquitetonico',
       stage: projectData.stage || 'briefing',
       priority: projectData.priority || 'media',
+      startDate: normalizeDate(projectData.startDate),
+      endDate: normalizeDate(projectData.endDate),
+      budget: normalizeNumber(projectData.budget),
       createdAt: now,
       updatedAt: now,
     };
@@ -189,7 +209,16 @@ export const projectService = {
 
   async updateProject(id: string, data: any) {
     const docRef = doc(db, 'projects', id);
-    const updateData = { ...data, updatedAt: new Date() };
+    const normalizeDate = (v: any) => (typeof v === 'string' && v ? new Date(v) : v ?? null);
+    const normalizeNumber = (n: any) => (typeof n === 'string' ? (n.trim() ? Number(n) : null) : n);
+    const updateData = {
+      ...data,
+      type: data?.type ?? undefined,
+      startDate: data?.startDate !== undefined ? normalizeDate(data.startDate) : undefined,
+      endDate: data?.endDate !== undefined ? normalizeDate(data.endDate) : undefined,
+      budget: data?.budget !== undefined ? normalizeNumber(data.budget) : undefined,
+      updatedAt: new Date(),
+    };
     await updateDoc(docRef, toFirestoreData(updateData));
     return { id, ...updateData };
   },

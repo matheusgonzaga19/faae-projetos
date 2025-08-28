@@ -14,7 +14,6 @@ import ProjectsManager from "@/components/Projects/ProjectsManager";
 
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useUserTypeSetup } from "@/hooks/useUserTypeSetup";
-import type { User } from "@shared/schema";
 
 type Section = 'dashboard' | 'kanban' | 'projects' | 'calendar' | 'files' | 'chat' | 'users';
 

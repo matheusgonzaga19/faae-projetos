@@ -27,6 +27,7 @@ import { Plus, Edit2, Trash2, Building, Calendar, Users } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { ProjectWithTasks } from "@shared/schema";
+import { firebaseService } from "@/services/firebaseService";
 
 export default function ProjectsManager() {
   const { user } = useAuth();
@@ -51,8 +52,10 @@ export default function ProjectsManager() {
   const [area, setArea] = useState("");
 
   // Data queries
-  const { data: projects = [], isLoading } = useQuery<ProjectWithTasks[]>({
+  const { data: projects = [], isLoading, isError, error } = useQuery<ProjectWithTasks[]>({
     queryKey: ['/api/projects'],
+    queryFn: () => firebaseService.getProjects(),
+    staleTime: 30_000,
   });
 
   // Create project mutation
@@ -79,7 +82,7 @@ export default function ProjectsManager() {
 
   // Update project mutation
   const updateProjectMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
       return await apiRequest('PUT', `/api/projects/${id}`, data);
     },
     onSuccess: () => {
@@ -101,7 +104,7 @@ export default function ProjectsManager() {
 
   // Delete project mutation
   const deleteProjectMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       return await apiRequest('DELETE', `/api/projects/${id}`);
     },
     onSuccess: () => {
@@ -238,6 +241,14 @@ export default function ProjectsManager() {
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Carregando projetos...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center p-8 text-red-600">
+        Erro ao carregar projetos: {(error as Error)?.message || 'desconhecido'}
+      </div>
+    );
   }
 
   return (
