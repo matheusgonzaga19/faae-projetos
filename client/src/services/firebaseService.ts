@@ -1,4 +1,4 @@
-import {
+﻿import {
   collection,
   doc,
   getDocs,
@@ -213,10 +213,17 @@ export const projectService = {
     const normalizeNumber = (n: any) => (typeof n === 'string' ? (n.trim() ? Number(n) : null) : n);
     const updateData = {
       ...data,
-      type: data?.type ?? undefined,
-      startDate: data?.startDate !== undefined ? normalizeDate(data.startDate) : undefined,
-      endDate: data?.endDate !== undefined ? normalizeDate(data.endDate) : undefined,
-      budget: data?.budget !== undefined ? normalizeNumber(data.budget) : undefined,
+      name: (data?.name !== undefined ? (typeof data.name === 'string' ? data.name.trim() : data.name) : undefined),
+      companyName: (data?.companyName !== undefined ? (typeof data.companyName === 'string' ? data.companyName.trim() : data.companyName) : undefined),
+      cnpj: (data?.cnpj !== undefined ? (typeof data.cnpj === 'string' && data.cnpj.trim() ? data.cnpj.trim() : null) : undefined),
+      nfeEmail: (data?.nfeEmail !== undefined ? (typeof data.nfeEmail === 'string' && data.nfeEmail.trim() ? data.nfeEmail.trim().toLowerCase() : null) : undefined),
+      clientName: (data?.clientName !== undefined ? (typeof data.clientName === 'string' ? data.clientName.trim() : data.clientName) : undefined),
+      clientEmail: (data?.clientEmail !== undefined ? (typeof data.clientEmail === 'string' && data.clientEmail.trim() ? data.clientEmail.trim().toLowerCase() : null) : undefined),
+      clientPhone: (data?.clientPhone !== undefined ? (typeof data.clientPhone === 'string' ? data.clientPhone.trim() : data.clientPhone) : undefined),
+      location: (data?.location !== undefined ? (typeof data.location === 'string' ? data.location.trim() : data.location) : undefined),
+      startDate: data?.startDate !== undefined ? (typeof data.startDate === 'string' && data.startDate ? new Date(data.startDate) : data.startDate ?? null) : undefined,
+      endDate: data?.endDate !== undefined ? (typeof data.endDate === 'string' && data.endDate ? new Date(data.endDate) : data.endDate ?? null) : undefined,
+      budget: data?.budget !== undefined ? (typeof data.budget === 'string' ? (data.budget.trim() ? Number(data.budget) : null) : data.budget) : undefined,
       updatedAt: new Date(),
     };
     await updateDoc(docRef, toFirestoreData(updateData));
@@ -256,14 +263,14 @@ export const taskService = {
   async addTask(taskData: any) {
     // Validate projectId is required
     if (!taskData.projectId) {
-      throw new Error('projectId é obrigatório para criar uma tarefa');
+      throw new Error('projectId Ã© obrigatÃ³rio para criar uma tarefa');
     }
 
     // Verify project exists
     const projectRef = doc(db, 'projects', taskData.projectId.toString());
     const projectSnap = await getDoc(projectRef);
     if (!projectSnap.exists()) {
-      throw new Error(`Projeto com ID ${taskData.projectId} não encontrado`);
+      throw new Error(`Projeto com ID ${taskData.projectId} nÃ£o encontrado`);
     }
 
     const now = new Date();
@@ -345,7 +352,7 @@ export const taskService = {
       const projectRef = doc(db, 'projects', data.projectId.toString());
       const projectSnap = await getDoc(projectRef);
       if (!projectSnap.exists()) {
-        throw new Error(`Projeto com ID ${data.projectId} não encontrado`);
+        throw new Error(`Projeto com ID ${data.projectId} nÃ£o encontrado`);
       }
     }
 
@@ -774,7 +781,7 @@ export const firebaseService = {
           type: 'task_updated',
           description: `Tarefa "${task.title}" foi atualizada`,
           timestamp: task.updatedAt?.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt),
-          user: 'Usuário'
+          user: 'UsuÃ¡rio'
         });
       });
 
@@ -794,7 +801,7 @@ export const firebaseService = {
           type: 'project_updated',
           description: `Projeto "${project.name}" foi atualizado`,
           timestamp: project.updatedAt?.toDate ? project.updatedAt.toDate() : new Date(project.updatedAt),
-          user: 'Usuário'
+          user: 'UsuÃ¡rio'
         });
       });
 

@@ -20,6 +20,17 @@ export interface Project {
   type?: string;
   stage?: string;
   priority?: string;
+  // New business fields
+  companyName?: string | null;
+  cnpj?: string | null;
+  nfeEmail?: string | null;
+  clientName?: string | null;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  budget?: number | null;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
+  location?: string | null;
   createdAt?: Date | null;
   updatedAt?: Date | null;
   managerUserId?: string | null;
@@ -78,4 +89,3 @@ export interface TimeEntry {
   endedAt?: Date | null;
   hours?: number | null;
 }
-
