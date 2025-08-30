@@ -313,33 +313,19 @@ export const taskService = {
       hasIndexedFilter = true;
     }
 
-    // If no indexed filters are provided, allow a limited, ordered query (used by Kanban)
-    if (!hasIndexedFilter) {
-      // Fallback: order by createdAt and apply a safe limit
-      queryConstraints.push(orderBy('createdAt', 'desc'));
-      if (filters.limit) {
-        queryConstraints.push(limit(filters.limit));
-      } else {
-        queryConstraints.push(limit(100));
-      }
-    }
+    // If no indexed filters are provided, we will apply ordering later (no order needed when filtering)
 
     // Add appropriate ordering based on use case
     if (filters.orderByDueDate) {
+      // Calendar-specific ordering
       queryConstraints.push(orderBy('dueDate', 'asc'));
-    } else {
-      // Only add createdAt ordering if not already added by the fallback above
-      if (!queryConstraints.some((c: any) => c.type === 'orderBy' || c._methodName === 'orderBy')) {
-        queryConstraints.push(orderBy('createdAt', 'desc'));
-      }
+    } else if (!hasIndexedFilter) {
+      // Unfiltered list: order by created date; when filtered, skip order to avoid composite index requirement
+      queryConstraints.push(orderBy('createdAt', 'desc'));
     }
 
     // Limit results to prevent excessive data transfer
-    if (filters.limit) {
-      queryConstraints.push(limit(filters.limit));
-    } else {
-      queryConstraints.push(limit(100)); // Default limit
-    }
+    queryConstraints.push(limit(filters.limit || 100));
 
     const tasksQuery = query(collection(db, 'tasks'), ...queryConstraints);
     const querySnapshot = await getDocs(tasksQuery);
@@ -431,7 +417,10 @@ export const subscriptionService = {
       return subscriptionId;
     }
 
-    queryConstraints.push(orderBy('createdAt', 'desc'));
+    // Only order when not applying equality filters, to avoid composite index requirements
+    if (!hasIndexedFilter) {
+      queryConstraints.push(orderBy('createdAt', 'desc'));
+    }
     queryConstraints.push(limit(filters.limit || 100));
 
     const tasksQuery = query(collection(db, 'tasks'), ...queryConstraints);
@@ -582,7 +571,14 @@ export const firebaseService = {
   },
 
   async createTask(taskData: any) {
-    const data = { ...taskData };
+    const data: any = { ...taskData };
+    // Normalize UI field to stored field
+    if (data.assignedUserId !== undefined) {
+      if (data.assignedUserId && data.assignedUserId !== 'none') {
+        data.assigneeId = data.assignedUserId;
+      }
+      delete data.assignedUserId;
+    }
     if (!data.assigneeId || data.assigneeId === 'none') {
       delete data.assigneeId;
     }
@@ -590,7 +586,16 @@ export const firebaseService = {
   },
 
   async updateTask(id: string, data: any) {
-    return await taskService.updateTask(id, data);
+    const payload: any = { ...data };
+    if (payload.assignedUserId !== undefined) {
+      if (payload.assignedUserId && payload.assignedUserId !== 'none') {
+        payload.assigneeId = payload.assignedUserId;
+      } else {
+        payload.assigneeId = null;
+      }
+      delete payload.assignedUserId;
+    }
+    return await taskService.updateTask(id, payload);
   },
 
   async updateTaskStatus(id: string, status: string) {

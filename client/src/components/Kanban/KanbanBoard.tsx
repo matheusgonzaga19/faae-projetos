@@ -138,7 +138,7 @@ export default function KanbanBoard() {
   const getTasksByStatus = (status: TaskStatus) => {
     return tasks.filter(task => {
       const statusMatch = task.status === status;
-      const projectMatch = !selectedProjectId || task.projectId === selectedProjectId;
+      const projectMatch = !selectedProjectId || String((task as any).projectId) === selectedProjectId;
       const userMatch = !selectedUserId || task.assigneeId === selectedUserId;
       return statusMatch && projectMatch && userMatch;
     });
