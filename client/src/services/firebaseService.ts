@@ -296,11 +296,12 @@ export const taskService = {
         queryConstraints.push(where('status', '==', filters.status));
       }
     } 
-    // Composite index: (assignedUserId, status) for user-based queries
+    // Composite index: (assigneeId, status) for user-based queries
     else if (filters.assigneeId) {
-      queryConstraints.push(where('assignedUserId', '==', filters.assigneeId));
+      // Tasks store the field as "assigneeId"
+      queryConstraints.push(where('assigneeId', '==', filters.assigneeId));
       hasIndexedFilter = true;
-      
+
       // Add status filter if provided (uses composite index)
       if (filters.status) {
         queryConstraints.push(where('status', '==', filters.status));
@@ -414,7 +415,7 @@ export const subscriptionService = {
         queryConstraints.push(where('status', '==', filters.status));
       }
     } else if (filters.assigneeId) {
-      queryConstraints.push(where('assignedUserId', '==', filters.assigneeId));
+      queryConstraints.push(where('assigneeId', '==', filters.assigneeId));
       hasIndexedFilter = true;
       if (filters.status) {
         queryConstraints.push(where('status', '==', filters.status));
@@ -573,7 +574,7 @@ export const firebaseService = {
     const querySnapshot = await getDocs(
       query(
         collection(db, 'tasks'),
-        where('assignedUserId', '==', userId),
+        where('assigneeId', '==', userId),
         orderBy('createdAt', 'desc')
       )
     );
@@ -677,7 +678,7 @@ export const firebaseService = {
 
   async getUserStats(userId: string) {
     const tasksSnapshot = await getDocs(
-      query(collection(db, 'tasks'), where('assignedUserId', '==', userId))
+      query(collection(db, 'tasks'), where('assigneeId', '==', userId))
     );
     const tasks = tasksSnapshot.docs.map(fromFirestoreData);
     
