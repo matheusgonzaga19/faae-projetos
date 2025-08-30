@@ -43,25 +43,3 @@ export const useTasksByAssignee = (assigneeId: string, enabled: boolean = true) 
 export const useTasksByStatus = (status: string, enabled: boolean = true) => {
   return useTasksOptimized({ status, limit: 100 }, enabled && !!status);
 };
-
-export const useTasksCalendar = (filters: TaskFilters = {}, enabled: boolean = true) => {
-  const calendarFilters = {
-    ...filters,
-    orderBy: 'dueDate',
-    orderDirection: 'asc' as const,
-    limit: 500, // Higher limit for calendar view
-  };
-
-  // Ensure filtered query for calendar
-  if (!calendarFilters.projectId && !calendarFilters.assigneeId && !calendarFilters.status) {
-    calendarFilters.status = 'aberta';
-  }
-
-  return useQuery({
-    queryKey: ['/api/tasks', 'calendar', calendarFilters],
-    queryFn: () => firebaseService.getTasks(calendarFilters),
-    refetchInterval: 60000, // Less frequent updates for calendar
-    enabled,
-    staleTime: 30000,
-  });
-};

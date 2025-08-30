@@ -1,10 +1,9 @@
 import { 
   BarChart3, 
-  Kanban, 
-  Building, 
-  Calendar, 
-  Folder, 
-  Bot, 
+  Kanban,
+  Building,
+  Folder,
+  Bot,
   Users,
 } from 'lucide-react';
 
@@ -20,7 +19,6 @@ export default function MobileBottomNav({ activeSection, onSectionChange, userRo
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'kanban', label: 'Kanban', icon: Kanban },
     { id: 'projects', label: 'Projetos', icon: Building },
-    { id: 'calendar', label: 'Calendário', icon: Calendar },
     { id: 'files', label: 'Arquivos', icon: Folder },
   ];
 

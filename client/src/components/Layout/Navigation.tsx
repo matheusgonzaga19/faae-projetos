@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { 
-  Home, 
-  BarChart3, 
-  Kanban, 
-  Building, 
-  Calendar, 
-  Folder, 
-  Bot, 
-  Users, 
-  Menu 
+import {
+  BarChart3,
+  Kanban,
+  Building,
+  Folder,
+  Bot,
+  Users,
+  Menu
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -27,7 +25,6 @@ export default function Navigation({ activeSection, onSectionChange, userRole, a
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'kanban', label: 'Kanban', icon: Kanban },
     { id: 'projects', label: 'Projetos', icon: Building },
-    { id: 'calendar', label: 'Calendário', icon: Calendar },
     { id: 'files', label: 'Arquivos', icon: Folder },
     { id: 'chat', label: 'IA Chat', icon: Bot },
   ];
