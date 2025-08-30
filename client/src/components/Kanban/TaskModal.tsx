@@ -48,9 +48,7 @@ const taskSchema = z.object({
   dueDate: z.date({
     required_error: 'Data de vencimento é obrigatória',
   }),
-  estimatedHours: z.number().min(0.1, 'Horas estimadas devem ser maior que 0').max(1000, 'Horas estimadas muito alta'),
-  assigneeId: z.string().optional(),
-  actualHours: z.number().min(0).max(1000).optional(),
+  assignedUserId: z.string().optional(),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -81,7 +79,7 @@ interface TaskModalProps {
     status: 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
     dueDate?: Date | string | null;
     estimatedHours?: number | null;
-    assigneeId?: string | null;
+    assignedUserId?: string | null;
     actualHours?: number | null;
   };
 }
@@ -107,9 +105,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       priority: 'media',
       status: 'aberta',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 1 week from now
-      estimatedHours: 1,
-      assigneeId: '',
-      actualHours: 0,
+      assignedUserId: '',
+      
     },
   });
 
@@ -124,9 +121,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         priority: (task.priority as any) || 'media',
         status: (task.status as any) || 'aberta',
         dueDate: task.dueDate ? new Date(task.dueDate as any) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        estimatedHours: typeof task.estimatedHours === 'number' ? task.estimatedHours : 1,
-        assigneeId: task.assigneeId || '',
-        actualHours: typeof task.actualHours === 'number' ? task.actualHours : 0,
+        assignedUserId: (task as any).assignedUserId || (task as any).assigneeId || '',
+        
       });
     } else {
       form.reset({
@@ -136,9 +132,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         priority: 'media',
         status: 'aberta',
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        estimatedHours: 1,
-        assigneeId: '',
-        actualHours: 0,
+        assignedUserId: '',
+        
       });
     }
   }, [isOpen, task]);
@@ -192,9 +187,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         priority: taskData.priority,
         status: taskData.status,
         dueDate: taskData.dueDate,
-        estimatedHours: taskData.estimatedHours,
-        assigneeId: taskData.assigneeId || null,
-        actualHours: taskData.actualHours || 0,
+        assignedUserId: (taskData as any).assignedUserId || null,
         updatedAt: new Date(),
       };
       return await firebaseService.updateTask(task.id, updated);
@@ -213,7 +206,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
   const onSubmit = (data: TaskFormData) => {
     const formattedData = {
       ...data,
-      assigneeId: data.assigneeId === 'none' ? undefined : data.assigneeId,
+      assignedUserId: (data as any).assignedUserId === 'none' ? undefined : (data as any).assignedUserId,
     };
     if (task?.id) {
       updateTaskMutation.mutate(formattedData);
@@ -422,35 +415,14 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 )}
               />
 
-              {/* Estimated Hours */}
-              <FormField
-                control={form.control}
-                name="estimatedHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horas Estimadas *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0.1"
-                        max="1000"
-                        placeholder="Ex: 8"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Assignee */}
               <FormField
                 control={form.control}
-                name="assigneeId"
+              name="assignedUserId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Responsável</FormLabel>
@@ -474,28 +446,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 )}
               />
 
-              {/* Actual Hours */}
-              <FormField
-                control={form.control}
-                name="actualHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horas Trabalhadas</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="1000"
-                        placeholder="Ex: 0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              
             </div>
 
             {/* Form Actions */}
