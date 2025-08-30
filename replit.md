@@ -122,7 +122,7 @@ Changelog:
   - Real-time collaboration features
   - AI-powered search and analytics
   - File management with preview capabilities
-  - Task management with kanban boards and calendar views
+  - Task management with kanban boards
 
 ## Recent Changes
 
@@ -143,7 +143,6 @@ Changelog:
 - **Real-time Subscriptions**: Added subscription management service with automatic cleanup
 - **Memory Leak Prevention**: Implemented proper useEffect cleanup for onSnapshot subscriptions
 - **Performance Monitoring**: Added warnings for unindexed queries and full collection scans
-- **Calendar Optimization**: Separate query strategies for calendar (orderByDueDate) vs kanban views
 - **Query Caching**: Enhanced React Query keys for better cache invalidation strategies
 
 ### Firebase Migration Complete (August 7, 2025)

@@ -342,17 +342,7 @@ export const taskService = {
 
     const tasksQuery = query(collection(db, 'tasks'), ...queryConstraints);
     const querySnapshot = await getDocs(tasksQuery);
-    let tasks = querySnapshot.docs.map(fromFirestoreData);
-
-    // Apply client-side date filtering if needed (for calendar view)
-    if (filters.month && filters.year) {
-      tasks = tasks.filter(task => {
-        if (!task.dueDate) return false;
-        const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
-        return dueDate.getMonth() === filters.month - 1 && dueDate.getFullYear() === filters.year;
-      });
-    }
-
+    const tasks = querySnapshot.docs.map(fromFirestoreData);
     return tasks;
   },
 
@@ -447,15 +437,6 @@ export const subscriptionService = {
     
     const unsubscribe = onSnapshot(tasksQuery, (querySnapshot) => {
       let tasks = querySnapshot.docs.map(fromFirestoreData);
-      
-      // Apply client-side filtering if needed
-      if (filters.month && filters.year) {
-        tasks = tasks.filter(task => {
-          if (!task.dueDate) return false;
-          const dueDate = new Date(task.dueDate);
-          return dueDate.getMonth() === filters.month - 1 && dueDate.getFullYear() === filters.year;
-        });
-      }
       
       callback(tasks);
     }, (error) => {

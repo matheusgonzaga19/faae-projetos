@@ -6,7 +6,6 @@ import Header from "@/components/Layout/Header";
 import MobileBottomNav from "@/components/Layout/MobileBottomNav";
 import DashboardEnhanced from "@/components/Dashboard/DashboardEnhanced";
 import KanbanBoard from "@/components/Kanban/KanbanBoard";
-import CalendarView from "@/components/Calendar/CalendarView";
 import FileManager from "@/components/Files/FileManager";
 import AIChat from "@/components/Chat/AIChat";
 import UserManagement from "@/components/Users/UserManagement";
@@ -15,7 +14,7 @@ import ProjectsManager from "@/components/Projects/ProjectsManager";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useUserTypeSetup } from "@/hooks/useUserTypeSetup";
 
-type Section = 'dashboard' | 'kanban' | 'projects' | 'calendar' | 'files' | 'chat' | 'users';
+type Section = 'dashboard' | 'kanban' | 'projects' | 'files' | 'chat' | 'users';
 
 export default function Home() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -66,8 +65,6 @@ export default function Home() {
         return <KanbanBoard />;
       case 'projects':
         return <ProjectsManager />;
-      case 'calendar':
-        return <CalendarView />;
       case 'files':
         return <FileManager />;
       case 'chat':

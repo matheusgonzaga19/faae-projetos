@@ -23,7 +23,6 @@ export default function UserManagement() {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'kanban', label: 'Kanban' },
     { id: 'projects', label: 'Projetos' },
-    { id: 'calendar', label: 'Calendário' },
     { id: 'files', label: 'Arquivos' },
     { id: 'chat', label: 'IA Chat' },
   ];

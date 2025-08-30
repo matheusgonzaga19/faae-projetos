@@ -117,7 +117,7 @@ export const getFirestoreQueryFn: QueryFunction = async ({ queryKey }) => {
       
       case '/api/tasks':
         if (params && params.length > 0) {
-          if (params[0] === 'filtered' || params[0] === 'calendar' || params[0] === 'kanban') {
+          if (params[0] === 'filtered' || params[0] === 'kanban') {
             // Handle filtered tasks: ['/api/tasks', 'type', filters]
             const filters = params[1] || {};
             return await firebaseService.getTasks(filters);

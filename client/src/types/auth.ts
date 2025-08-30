@@ -5,7 +5,6 @@ export type Section =
   | 'dashboard'
   | 'kanban'
   | 'projects'
-  | 'calendar'
   | 'files'
   | 'chat'
   | 'users';
@@ -14,7 +13,6 @@ export const DEFAULT_ALLOWED_SECTIONS: Section[] = [
   'dashboard',
   'kanban',
   'projects',
-  'calendar',
   'files',
   'chat',
 ];
