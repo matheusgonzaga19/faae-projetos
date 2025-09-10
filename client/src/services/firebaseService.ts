@@ -763,7 +763,7 @@ export const firebaseService = {
         .slice(-6); // Last 6 months
 
       // Get recent activities from tasks and projects
-      const recentActivities = [];
+      const recentActivities: Array<{ id: string; type: string; description: string; timestamp: Date; user: string }> = [];
       
       // Recent task updates
       const recentTasks = allTasksSnapshot.docs
@@ -786,8 +786,8 @@ export const firebaseService = {
       });
 
       // Recent project updates
-      const recentProjects = allProjectsSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
+      const recentProjects: any[] = allProjectsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
         .sort((a, b) => {
           const dateA = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt);
           const dateB = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt);
@@ -795,7 +795,7 @@ export const firebaseService = {
         })
         .slice(0, 2);
 
-      recentProjects.forEach(project => {
+      recentProjects.forEach((project: any) => {
         recentActivities.push({
           id: `project-${project.id}`,
           type: 'project_updated',

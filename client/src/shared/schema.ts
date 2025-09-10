@@ -1,7 +1,41 @@
 // Minimal shared types to support the client without the Replit DB server
 
 export type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
-export type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica';
+export type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica' | 'urgente';
+
+export interface Subtask {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority?: TaskPriority;
+  assignedUserIds?: string[];
+  dueDate?: Date | string | null;
+}
+
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface Checklist {
+  id: string;
+  title: string;
+  items: ChecklistItem[];
+}
+
+export interface TaskRelationship {
+  id: string;
+  type: 'blocks' | 'blocked_by' | 'relates_to';
+  taskId: string;
+}
+
+export interface CustomField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'list' | 'date' | 'boolean';
+  value: string | number | boolean | null;
+}
 
 export interface User {
   id: string;
@@ -28,6 +62,7 @@ export interface Project {
   clientEmail?: string | null;
   clientPhone?: string | null;
   budget?: number | null;
+  estimatedHours?: number | null;
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   location?: string | null;
@@ -43,17 +78,26 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   projectId: string | null;
-  assignedUserId?: string | null;
+  assignedUserId?: string | null; // legacy single responsible
+  assignedUserIds?: string[]; // multiple responsáveis
+  startDate?: Date | string | null;
   dueDate?: Date | string | null;
+  tags?: string[];
+  relationships?: TaskRelationship[];
+  customFields?: CustomField[];
+  subtasks?: Subtask[];
+  checklists?: Checklist[];
   estimatedHours?: number | null;
   actualHours?: number | null;
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  completedAt?: Date | string | null;
 }
 
 export interface TaskWithDetails extends Task {
   project?: Project | null;
   assignedUser?: User | null;
+  assignedUsers?: User[];
   timeEntries?: Array<{ id: string; startedAt: Date; endedAt?: Date | null; hours?: number | null }>;
 }
 

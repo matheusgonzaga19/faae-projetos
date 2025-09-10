@@ -100,13 +100,13 @@ export class PDFReportGenerator {
     return priorityMap[priority] || priority;
   }
 
-  private formatDate(date: Date | string | null): string {
+  private formatDate(date?: Date | string | null): string {
     if (!date) return 'Não definido';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, 'dd/MM/yyyy', { locale: ptBR });
   }
 
-  private formatDateTime(date: Date | string | null): string {
+  private formatDateTime(date?: Date | string | null): string {
     if (!date) return 'Não definido';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, 'dd/MM/yyyy HH:mm', { locale: ptBR });
