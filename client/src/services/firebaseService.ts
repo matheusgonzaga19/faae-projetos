@@ -794,7 +794,6 @@ export const firebaseService = {
       // Recent project updates
       const recentProjects: any[] = allProjectsSnapshot.docs
         .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
-        .sort((a: any, b: any) => {
           const dateA = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt);
           const dateB = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt);
           return dateB.getTime() - dateA.getTime();

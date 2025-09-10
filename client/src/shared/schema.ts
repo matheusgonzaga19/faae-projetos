@@ -87,13 +87,11 @@ export interface Task {
   customFields?: CustomField[];
   subtasks?: Subtask[];
   checklists?: Checklist[];
-  files?: File[];
   estimatedHours?: number | null;
   actualHours?: number | null;
   createdAt?: Date | null;
   updatedAt?: Date | null;
   completedAt?: Date | string | null;
-  createdUserId?: string | null;
 }
 
 export interface TaskWithDetails extends Task {

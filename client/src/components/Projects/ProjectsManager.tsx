@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { ProjectWithTasks } from "@shared/schema";
 import { firebaseService } from "@/services/firebaseService";
+import ProjectFilters from "./ProjectFilters";
 
 export default function ProjectsManager() {
   // Helpers: formatting and validation
@@ -75,6 +76,19 @@ export default function ProjectsManager() {
   const [selectedProject, setSelectedProject] = useState<ProjectWithTasks | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<ProjectWithTasks | null>(null);
+
+  const initialFilters = {
+    search: "",
+    status: "",
+    type: "",
+    priority: "",
+    companyName: "",
+    clientName: "",
+    dateFrom: "",
+    dateTo: "",
+  };
+  const [filters, setFilters] = useState(initialFilters);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -269,6 +283,24 @@ export default function ProjectsManager() {
     cancelled: "bg-red-100 text-red-800"
   } as const;
 
+  const filteredProjects = projects.filter((project) => {
+    if (filters.search && !project.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    if (filters.status && project.status !== filters.status) return false;
+    if (filters.type && project.type !== filters.type) return false;
+    if (filters.priority && (project as any).priority !== filters.priority) return false;
+    if (filters.companyName && !(project as any).companyName?.toLowerCase().includes(filters.companyName.toLowerCase())) return false;
+    if (filters.clientName && !(project as any).clientName?.toLowerCase().includes(filters.clientName.toLowerCase())) return false;
+    if (filters.dateFrom) {
+      const start = (project as any).startDate ? new Date((project as any).startDate) : null;
+      if (!start || start < new Date(filters.dateFrom)) return false;
+    }
+    if (filters.dateTo) {
+      const end = (project as any).endDate ? new Date((project as any).endDate) : null;
+      if (!end || end > new Date(filters.dateTo)) return false;
+    }
+    return true;
+  });
+
   const canManageProjects = user?.role === 'admin';
 
   if (isLoading) return <div className="flex items-center justify-center p-8">Carregando projetos...</div>;
@@ -276,6 +308,13 @@ export default function ProjectsManager() {
 
   return (
     <div className="space-y-6">
+      <ProjectFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={() => setFilters(initialFilters)}
+        isExpanded={filtersExpanded}
+        onToggleExpand={() => setFiltersExpanded(!filtersExpanded)}
+      />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Gerenciar Projetos</h2>
         {canManageProjects && (
@@ -287,7 +326,7 @@ export default function ProjectsManager() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects.map((project) => (
+        {filteredProjects.map((project) => (
           <Card key={project.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
