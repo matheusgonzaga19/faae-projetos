@@ -238,7 +238,11 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         startDate: taskData.startDate,
         dueDate: taskData.dueDate,
         assignedUserIds: taskData.assignedUserIds || [],
-        tags: taskData.tags ? taskData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        tags: Array.isArray(taskData.tags)
+          ? taskData.tags
+          : taskData.tags
+          ? taskData.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : [],
         subtasks: taskData.subtasks?.map(st => ({
           ...st,
           assignedUserIds:
