@@ -242,8 +242,8 @@ export default function UserManagement() {
                             {sectionOptions.map(section => (
                               <DropdownMenuCheckboxItem
                                 key={section.id}
-                                  checked={user.allowedSections?.includes(section.id as any)}
-                                  onCheckedChange={(checked) => handleSectionChange(user.id, section.id as any, !!checked)}
+                                checked={user.allowedSections?.includes(section.id)}
+                                onCheckedChange={(checked) => handleSectionChange(user.id, section.id, !!checked)}
                               >
                                 {section.label}
                               </DropdownMenuCheckboxItem>

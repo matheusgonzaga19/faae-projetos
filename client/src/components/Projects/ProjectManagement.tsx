@@ -305,7 +305,7 @@ function ProjectCard({ project, onSelectProject }: { project: ProjectWithTasks; 
     e.stopPropagation();
     // O modal de edição será aberto
   };
-  const getStatusColor = (status?: string) => {
+  const getStatusColor = (status: string) => {
     const colors = {
       active: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
       completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -315,7 +315,7 @@ function ProjectCard({ project, onSelectProject }: { project: ProjectWithTasks; 
     return colors[status as keyof typeof colors] || colors.active;
   };
 
-  const getStatusLabel = (status?: string) => {
+  const getStatusLabel = (status: string) => {
     const labels = {
       active: "Ativo",
       completed: "Concluído",
@@ -325,7 +325,7 @@ function ProjectCard({ project, onSelectProject }: { project: ProjectWithTasks; 
     return labels[status as keyof typeof labels] || "Ativo";
   };
 
-  const getTypeLabel = (type?: string) => {
+  const getTypeLabel = (type: string) => {
     const labels = {
       stand_imobiliario: "Stand Imobiliário",
       projeto_arquitetura: "Projeto de Arquitetura",
