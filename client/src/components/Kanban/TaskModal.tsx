@@ -241,7 +241,10 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         tags: taskData.tags ? taskData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         subtasks: taskData.subtasks?.map(st => ({
           ...st,
-          assignedUserIds: st.assignedUserId ? [st.assignedUserId] : [],
+          assignedUserIds:
+            st.assignedUserId && st.assignedUserId !== 'none'
+              ? [st.assignedUserId]
+              : [],
           dueDate: st.dueDate ? new Date(st.dueDate) : undefined,
         })),
         relationships: taskData.relationships,
@@ -267,7 +270,10 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       assignedUserIds: data.assignedUserIds || [],
       subtasks: data.subtasks?.map(st => ({
         ...st,
-        assignedUserIds: st.assignedUserId ? [st.assignedUserId] : [],
+        assignedUserIds:
+          st.assignedUserId && st.assignedUserId !== 'none'
+            ? [st.assignedUserId]
+            : [],
         dueDate: st.dueDate ? new Date(st.dueDate) : undefined,
       })),
       relationships: data.relationships,
@@ -660,7 +666,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">Nenhum</SelectItem>
+                              <SelectItem value="none">Nenhum</SelectItem>
                               {users.map((user) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {getUserDisplayName(user)}
