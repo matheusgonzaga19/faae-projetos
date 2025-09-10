@@ -259,14 +259,6 @@ export const projectService = {
 };
 
 // Task management functions
-interface TaskQueryFilters {
-  projectId?: string;
-  assigneeId?: string;
-  status?: string;
-  orderByDueDate?: boolean;
-  limit?: number;
-}
-
 export const taskService = {
   async addTask(taskData: any) {
     // Validate projectId is required
@@ -295,10 +287,10 @@ export const taskService = {
     return { ...data, id: docRef.id };
   },
 
-  async getTasks(filters: TaskQueryFilters = {}) {
+  async getTasks(filters = {}) {
     // Performance optimization: Always require at least one indexed filter
     // to avoid full collection scans
-    const queryConstraints: any[] = [];
+    const queryConstraints = [];
     let hasIndexedFilter = false;
 
     // Composite index: (projectId, status) for project-based queries
@@ -571,7 +563,7 @@ export const firebaseService = {
   },
 
   async getTasksByProject(projectId: string) {
-    return await taskService.getTasks({ projectId });
+    return await taskService.getTasks(projectId);
   },
 
   async getTasksByUser(userId: string) {
@@ -587,9 +579,14 @@ export const firebaseService = {
 
   async createTask(taskData: any) {
     const data: any = { ...taskData };
-    if (Array.isArray(data.assignedUserIds) && data.assignedUserIds.length > 0) {
-      data.assigneeId = data.assignedUserIds[0];
-    } else {
+    // Normalize UI field to stored field
+    if (data.assignedUserId !== undefined) {
+      if (data.assignedUserId && data.assignedUserId !== 'none') {
+        data.assigneeId = data.assignedUserId;
+      }
+      delete data.assignedUserId;
+    }
+    if (!data.assigneeId || data.assigneeId === 'none') {
       delete data.assigneeId;
     }
     return await taskService.addTask(data);
@@ -597,12 +594,13 @@ export const firebaseService = {
 
   async updateTask(id: string, data: any) {
     const payload: any = { ...data };
-    if (Array.isArray(payload.assignedUserIds)) {
-      if (payload.assignedUserIds.length > 0) {
-        payload.assigneeId = payload.assignedUserIds[0];
+    if (payload.assignedUserId !== undefined) {
+      if (payload.assignedUserId && payload.assignedUserId !== 'none') {
+        payload.assigneeId = payload.assignedUserId;
       } else {
         payload.assigneeId = null;
       }
+      delete payload.assignedUserId;
     }
     return await taskService.updateTask(id, payload);
   },
@@ -730,7 +728,7 @@ export const firebaseService = {
       let totalWorkedHours = 0;
       const tasksByStatus = { aberta: 0, em_andamento: 0, concluida: 0, cancelada: 0 };
       const tasksByPriority = { baixa: 0, media: 0, alta: 0, critica: 0 };
-      const monthlyTasks = new Map<string, number>();
+      const monthlyTasks = new Map();
 
       allTasksSnapshot.docs.forEach(doc => {
         const task = doc.data();
@@ -741,15 +739,13 @@ export const firebaseService = {
         }
 
         // Count by status
-        if (task.status && (task.status in tasksByStatus)) {
-          const key = task.status as keyof typeof tasksByStatus;
-          tasksByStatus[key]++;
+        if (task.status && tasksByStatus.hasOwnProperty(task.status)) {
+          tasksByStatus[task.status]++;
         }
 
         // Count by priority
-        if (task.priority && (task.priority in tasksByPriority)) {
-          const key = task.priority as keyof typeof tasksByPriority;
-          tasksByPriority[key]++;
+        if (task.priority && tasksByPriority.hasOwnProperty(task.priority)) {
+          tasksByPriority[task.priority]++;
         }
 
         // Count by month for evolution chart
@@ -763,9 +759,7 @@ export const firebaseService = {
       // Convert monthly tasks to array and sort
       const tasksEvolution = Array.from(monthlyTasks.entries())
         .map(([month, tasks]) => ({ month, tasks }))
-        .sort(
-          (a, b) => new Date(`${a.month} 2025`).getTime() - new Date(`${b.month} 2025`).getTime()
-        )
+        .sort((a, b) => new Date(`${a.month} 2025`) - new Date(`${b.month} 2025`))
         .slice(-6); // Last 6 months
 
       // Get recent activities from tasks and projects
@@ -773,30 +767,31 @@ export const firebaseService = {
       
       // Recent task updates
       const recentTasks = allTasksSnapshot.docs
-        .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
-        .sort((a: any, b: any) => {
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => {
           const dateA = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt);
           const dateB = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt);
-          return dateB.getTime() - dateA.getTime();
+          return dateB - dateA;
         })
         .slice(0, 3);
 
-      recentTasks.forEach((task: any) => {
+      recentTasks.forEach(task => {
         recentActivities.push({
           id: `task-${task.id}`,
           type: 'task_updated',
           description: `Tarefa "${task.title}" foi atualizada`,
           timestamp: task.updatedAt?.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt),
-          user: 'Usuário'
+          user: 'UsuÃ¡rio'
         });
       });
 
       // Recent project updates
       const recentProjects: any[] = allProjectsSnapshot.docs
         .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+        .sort((a, b) => {
           const dateA = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt);
           const dateB = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt);
-          return dateB.getTime() - dateA.getTime();
+          return dateB - dateA;
         })
         .slice(0, 2);
 
@@ -806,12 +801,12 @@ export const firebaseService = {
           type: 'project_updated',
           description: `Projeto "${project.name}" foi atualizado`,
           timestamp: project.updatedAt?.toDate ? project.updatedAt.toDate() : new Date(project.updatedAt),
-          user: 'Usuário'
+          user: 'UsuÃ¡rio'
         });
       });
 
       // Sort recent activities by timestamp
-      recentActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      recentActivities.sort((a, b) => b.timestamp - a.timestamp);
 
       return {
         totalTasks,

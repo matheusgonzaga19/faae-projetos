@@ -8,7 +8,7 @@ export interface PDFReportData {
   tasks: TaskWithDetails[];
   users: User[];
   appliedFilters: {
-    projectId?: string;
+    projectId?: number;
     assignedUserId?: string;
     status?: string;
     priority?: string;

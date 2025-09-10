@@ -8,7 +8,7 @@ import type { TaskWithDetails } from "@shared/schema";
 
 interface TaskCardProps {
   task: TaskWithDetails;
-  onDragStart: (e: React.DragEvent, taskId: string) => void;
+  onDragStart: (e: React.DragEvent, taskId: number) => void;
 }
 
 const PRIORITY_COLORS = {
@@ -16,7 +16,6 @@ const PRIORITY_COLORS = {
   media: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-300",
   alta: "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-300",
   critica: "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-300",
-  urgente: "bg-red-600 text-white",
 };
 
 const PRIORITY_LABELS = {
@@ -24,7 +23,6 @@ const PRIORITY_LABELS = {
   media: "Média",
   alta: "Alta",
   critica: "Crítica",
-  urgente: "Urgente",
 };
 
 export default function TaskCard({ task, onDragStart }: TaskCardProps) {
@@ -127,6 +125,16 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
                   : '0%'
               }}
             ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Files Indicator */}
+      {task.files && task.files.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+            <i className="fas fa-paperclip mr-1"></i>
+            {task.files.length} arquivo{task.files.length !== 1 ? 's' : ''}
           </div>
         </div>
       )}
