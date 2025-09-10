@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Clock, User, AlertTriangle, RefreshCw, Edit2, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import TaskList from './TaskList';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
 import TaskModal from './TaskModal';
@@ -23,6 +25,9 @@ interface Task {
   priority: TaskPriority;
   projectId: string;
   assigneeId?: string;
+  assignedUserIds?: string[];
+  startDate?: Date;
+  tags?: string[];
   dueDate?: Date;
   estimatedHours?: number;
   actualHours?: number;
@@ -64,15 +69,18 @@ export default function KanbanBoard() {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedPriority, setSelectedPriority] = useState<string>('');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('');
+  const [tagFilter, setTagFilter] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch tasks and projects with optimized queries and user filtering
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
-    queryKey: ['/api/tasks', 'kanban', selectedProjectId, selectedUserId],
-    queryFn: () => firebaseService.getTasks({ 
+    queryKey: ['/api/tasks', 'kanban', selectedProjectId],
+    queryFn: () => firebaseService.getTasks({
       projectId: selectedProjectId || undefined,
-      assigneeId: selectedUserId || undefined,
       limit: 200 // Limit for performance
     }),
     refetchInterval: 30000,
@@ -137,10 +145,29 @@ export default function KanbanBoard() {
   // Group tasks by status and filter by project/user if selected
   const getTasksByStatus = (status: TaskStatus) => {
     return tasks.filter(task => {
-      const statusMatch = task.status === status;
+      const statusMatch = task.status === status && (!selectedStatusFilter || task.status === selectedStatusFilter);
       const projectMatch = !selectedProjectId || String((task as any).projectId) === selectedProjectId;
-      const userMatch = !selectedUserId || task.assigneeId === selectedUserId;
-      return statusMatch && projectMatch && userMatch;
+      const userMatch =
+        !selectedUserId ||
+        task.assigneeId === selectedUserId ||
+        (task.assignedUserIds && task.assignedUserIds.includes(selectedUserId));
+      const priorityMatch = !selectedPriority || task.priority === selectedPriority;
+      const tagMatch = !tagFilter || (task.tags && task.tags.includes(tagFilter));
+      return statusMatch && projectMatch && userMatch && priorityMatch && tagMatch;
+    });
+  };
+
+  const getFilteredTasks = () => {
+    return tasks.filter(task => {
+      const statusMatch = !selectedStatusFilter || task.status === selectedStatusFilter;
+      const projectMatch = !selectedProjectId || String((task as any).projectId) === selectedProjectId;
+      const userMatch =
+        !selectedUserId ||
+        task.assigneeId === selectedUserId ||
+        (task.assignedUserIds && task.assignedUserIds.includes(selectedUserId));
+      const priorityMatch = !selectedPriority || task.priority === selectedPriority;
+      const tagMatch = !tagFilter || (task.tags && task.tags.includes(tagFilter));
+      return statusMatch && projectMatch && userMatch && priorityMatch && tagMatch;
     });
   };
 
@@ -223,16 +250,54 @@ export default function KanbanBoard() {
             <option value="">Todos os usuários</option>
             {users.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.firstName && user.lastName 
-                  ? `${user.firstName} ${user.lastName}` 
+                {user.firstName && user.lastName
+                  ? `${user.firstName} ${user.lastName}`
                   : user.email}
               </option>
             ))}
           </select>
 
+          {/* Status Filter */}
+          <select
+            value={selectedStatusFilter}
+            onChange={(e) => setSelectedStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos os status</option>
+            <option value="aberta">Aberta</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluida">Concluída</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+
+          {/* Priority Filter */}
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas prioridades</option>
+            <option value="baixa">Baixa</option>
+            <option value="media">Média</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+
+          {/* Tag Filter */}
+          <Input
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            placeholder="Tag"
+            className="w-32"
+          />
+
           <Button onClick={() => refetchTasks()} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Atualizar
+          </Button>
+
+          <Button onClick={() => setViewMode(viewMode === 'board' ? 'list' : 'board')} variant="outline" size="sm">
+            {viewMode === 'board' ? 'Ver Lista' : 'Ver Kanban'}
           </Button>
 
           <Button onClick={() => setIsTaskModalOpen(true)}>
@@ -241,129 +306,131 @@ export default function KanbanBoard() {
           </Button>
         </div>
       </div>
+      {viewMode === 'board' ? (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)] overflow-hidden">
+            {COLUMNS.map((column) => {
+              const columnTasks = getTasksByStatus(column.id as TaskStatus);
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)] overflow-hidden">
-          {COLUMNS.map((column) => {
-            const columnTasks = getTasksByStatus(column.id as TaskStatus);
-            
-            return (
-              <div key={column.id} className="flex flex-col">
-                <div className={`${column.color} rounded-t-lg p-4 border-b-2`}>
-                  <h3 className="font-semibold text-gray-800 flex items-center justify-between">
-                    {column.title}
-                    <Badge variant="secondary" className="ml-2">
-                      {columnTasks.length}
-                    </Badge>
-                  </h3>
+              return (
+                <div key={column.id} className="flex flex-col">
+                  <div className={`${column.color} rounded-t-lg p-4 border-b-2`}>
+                    <h3 className="font-semibold text-gray-800 flex items-center justify-between">
+                      {column.title}
+                      <Badge variant="secondary" className="ml-2">
+                        {columnTasks.length}
+                      </Badge>
+                    </h3>
+                  </div>
+
+                  <Droppable droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex-1 p-4 space-y-3 overflow-y-auto bg-gray-50 rounded-b-lg border-l border-r border-b ${
+                          snapshot.isDraggingOver ? 'bg-blue-50' : ''
+                        }`}
+                        style={{ minHeight: '200px' }}
+                      >
+                        {columnTasks.map((task, index) => (
+                          <Draggable key={task.id} draggableId={task.id} index={index}>
+                            {(provided, snapshot) => (
+                              <Card
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`cursor-move transition-all duration-200 ${
+                                  snapshot.isDragging
+                                    ? 'rotate-2 shadow-lg ring-2 ring-blue-400'
+                                    : 'hover:shadow-md'
+                                }`}
+                              >
+                                <CardHeader className="pb-2">
+                                  <div className="flex items-start justify-between">
+                                    <CardTitle className="text-sm font-medium line-clamp-2">
+                                      {task.title}
+                                    </CardTitle>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-xs ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}`}
+                                      >
+                                        {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
+                                      </Badge>
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(task)}>
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(task)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </CardHeader>
+
+                                <CardContent className="pt-0">
+                                  {task.description && (
+                                    <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                                      {task.description}
+                                    </p>
+                                  )}
+
+                                  <div className="text-xs text-gray-500 mb-2">
+                                    <strong>Projeto:</strong> {getProjectName(task.projectId)}
+                                  </div>
+
+                                  <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                    {task.dueDate && (
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        {format(new Date(task.dueDate), 'dd/MM', { locale: ptBR })}
+                                      </div>
+                                    )}
+
+                                    {task.estimatedHours && (
+                                      <div className="flex items-center">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {task.estimatedHours}h
+                                      </div>
+                                    )}
+
+                                    {(task.assigneeId || task.assignedUserIds?.length) && (
+                                      <div className="flex items-center">
+                                        <User className="h-3 w-3 mr-1" />
+                                        Atribuída
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'concluida' && (
+                                    <div className="flex items-center mt-2 text-red-600">
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                      <span className="text-xs">Atrasada</span>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+
+                        {columnTasks.length === 0 && (
+                          <div className="text-center text-gray-400 py-8">
+                            <p className="text-sm">Nenhuma tarefa</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
-
-                <Droppable droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex-1 p-4 space-y-3 overflow-y-auto bg-gray-50 rounded-b-lg border-l border-r border-b ${
-                        snapshot.isDraggingOver ? 'bg-blue-50' : ''
-                      }`}
-                      style={{ minHeight: '200px' }}
-                    >
-                      {columnTasks.map((task, index) => (
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided, snapshot) => (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`cursor-move transition-all duration-200 ${
-                                snapshot.isDragging 
-                                  ? 'rotate-2 shadow-lg ring-2 ring-blue-400' 
-                                  : 'hover:shadow-md'
-                              }`}
-                            >
-                              <CardHeader className="pb-2">
-                                <div className="flex items-start justify-between">
-                                  <CardTitle className="text-sm font-medium line-clamp-2">
-                                    {task.title}
-                                  </CardTitle>
-                                  <div className="flex items-center gap-1 ml-2">
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`text-xs ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}`}
-                                    >
-                                      {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
-                                    </Badge>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(task)}>
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(task)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              
-                              <CardContent className="pt-0">
-                                {task.description && (
-                                  <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                                    {task.description}
-                                  </p>
-                                )}
-                                
-                                <div className="text-xs text-gray-500 mb-2">
-                                  <strong>Projeto:</strong> {getProjectName(task.projectId)}
-                                </div>
-
-                                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                  {task.dueDate && (
-                                    <div className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      {format(new Date(task.dueDate), 'dd/MM', { locale: ptBR })}
-                                    </div>
-                                  )}
-                                  
-                                  {task.estimatedHours && (
-                                    <div className="flex items-center">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      {task.estimatedHours}h
-                                    </div>
-                                  )}
-                                  
-                                  {task.assigneeId && (
-                                    <div className="flex items-center">
-                                      <User className="h-3 w-3 mr-1" />
-                                      Atribuída
-                                    </div>
-                                  )}
-                                </div>
-
-                                {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'concluida' && (
-                                  <div className="flex items-center mt-2 text-red-600">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    <span className="text-xs">Atrasada</span>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      
-                      {columnTasks.length === 0 && (
-                        <div className="text-center text-gray-400 py-8">
-                          <p className="text-sm">Nenhuma tarefa</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            );
-          })}
-        </div>
-      </DragDropContext>
+              );
+            })}
+          </div>
+        </DragDropContext>
+      ) : (
+        <TaskList tasks={getFilteredTasks()} onEdit={handleEdit} onDelete={handleDelete} />
+      )}
 
       {/* Task Creation Modal */}
       <TaskModal
