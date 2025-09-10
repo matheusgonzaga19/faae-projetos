@@ -119,6 +119,8 @@ export interface File {
   size: number;
   type: string;
   url: string;
+  mimeType: string;
+  originalName: string;
   taskId?: string;
   projectId?: string;
   uploadedUserId?: string;

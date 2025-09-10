@@ -366,9 +366,10 @@ export default function KanbanBoardFixed() {
 
       {/* Task Creation Modal */}
       <TaskModal
-        task={selectedTaskForModal}
-        open={isTaskModalOpen}
-        onOpenChange={setIsTaskModalOpen}
+        task={selectedTaskForModal || undefined}
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        projects={projects}
         defaultStatus="aberta"
       />
     </div>

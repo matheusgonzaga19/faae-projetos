@@ -193,8 +193,8 @@ export default function ProjectsManager() {
     setClientName((project as any).clientName || "");
     setClientEmail((project as any).clientEmail || "");
     setClientPhone((project as any).clientPhone || "");
-    setStatus(project.status);
-    setType(project.type);
+      setStatus(project.status as any);
+      setType(project.type as any);
     setStartDate((project as any).startDate || "");
     setEndDate((project as any).endDate || "");
     setBudget(project.budget?.toString() || "");
