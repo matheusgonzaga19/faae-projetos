@@ -27,10 +27,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, X, Plus } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Loader2, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -38,9 +38,6 @@ import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
 
 // Task creation schema
-const numberPreprocess = (val: any) =>
-  val === '' || val === null || val === undefined ? undefined : Number(val);
-
 const taskSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório').max(200, 'Título muito longo'),
   description: z.string().optional(),
@@ -55,8 +52,6 @@ const taskSchema = z.object({
   }),
   assignedUserIds: z.array(z.string()).optional(),
   tags: z.string().optional(),
-  estimatedHours: z.preprocess(numberPreprocess, z.number().nonnegative().optional()),
-  actualHours: z.preprocess(numberPreprocess, z.number().nonnegative().optional()),
   subtasks: z
     .array(
       z.object({
@@ -65,21 +60,6 @@ const taskSchema = z.object({
         priority: z.enum(['baixa', 'media', 'alta', 'critica']).optional(),
         assignedUserId: z.string().optional(),
         dueDate: z.any().optional(),
-      })
-    )
-    .optional(),
-  checklists: z
-    .array(
-      z.object({
-        title: z.string().min(1, 'Título é obrigatório'),
-        items: z
-          .array(
-            z.object({
-              title: z.string().min(1),
-              completed: z.boolean().optional(),
-            })
-          )
-          .optional(),
       })
     )
     .optional(),
@@ -121,12 +101,9 @@ interface TaskModalProps {
     status: 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
     startDate?: Date | string | null;
     dueDate?: Date | string | null;
-    estimatedHours?: number | null;
-    actualHours?: number | null;
     assignedUserIds?: string[] | null;
     tags?: string[] | null;
     subtasks?: any[] | null;
-    checklists?: any[] | null;
     relationships?: any[] | null;
   };
 }
@@ -156,10 +133,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 1 week from now
       assignedUserIds: [],
       tags: '',
-      estimatedHours: undefined,
-      actualHours: undefined,
       subtasks: [],
-      checklists: [],
       relationships: [],
     },
   });
@@ -167,11 +141,6 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
   const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask } = useFieldArray({
     control: form.control,
     name: 'subtasks',
-  });
-
-  const { fields: checklistFields, append: appendChecklist, remove: removeChecklist } = useFieldArray({
-    control: form.control,
-    name: 'checklists',
   });
 
   const { fields: relationshipFields, append: appendRelationship, remove: removeRelationship } = useFieldArray({
@@ -198,10 +167,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
             ? [(task as any).assignedUserId]
             : [],
         tags: task.tags ? task.tags.join(', ') : '',
-        estimatedHours: task.estimatedHours ?? undefined,
-        actualHours: task.actualHours ?? undefined,
         subtasks: task.subtasks || [],
-        checklists: task.checklists || [],
         relationships: task.relationships || [],
       });
     } else {
@@ -215,10 +181,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         assignedUserIds: [],
         tags: '',
-        estimatedHours: undefined,
-        actualHours: undefined,
         subtasks: [],
-        checklists: [],
         relationships: [],
       });
     }
@@ -276,14 +239,11 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
         dueDate: taskData.dueDate,
         assignedUserIds: taskData.assignedUserIds || [],
         tags: taskData.tags ? taskData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        estimatedHours: taskData.estimatedHours,
-        actualHours: taskData.actualHours,
         subtasks: taskData.subtasks?.map(st => ({
           ...st,
           assignedUserIds: st.assignedUserId ? [st.assignedUserId] : [],
           dueDate: st.dueDate ? new Date(st.dueDate) : undefined,
         })),
-        checklists: taskData.checklists,
         relationships: taskData.relationships,
         updatedAt: new Date(),
       };
@@ -305,14 +265,11 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       ...data,
       tags: data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       assignedUserIds: data.assignedUserIds || [],
-      estimatedHours: data.estimatedHours,
-      actualHours: data.actualHours,
       subtasks: data.subtasks?.map(st => ({
         ...st,
         assignedUserIds: st.assignedUserId ? [st.assignedUserId] : [],
         dueDate: st.dueDate ? new Date(st.dueDate) : undefined,
       })),
-      checklists: data.checklists,
       relationships: data.relationships,
     };
     if (task?.id) {
@@ -333,46 +290,6 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       return `${user.firstName || ''} ${user.lastName || ''}`.trim();
     }
     return user.email;
-  };
-
-  const ChecklistItems = ({ index }: { index: number }) => {
-    const { fields, append, remove } = useFieldArray({
-      control: form.control,
-      name: `checklists.${index}.items` as const,
-    });
-    return (
-      <div className="space-y-2">
-        {fields.map((item, itemIndex) => (
-          <div key={item.id} className="flex items-center space-x-2">
-            <FormField
-              control={form.control}
-              name={`checklists.${index}.items.${itemIndex}.completed` as const}
-              render={({ field }) => (
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={`checklists.${index}.items.${itemIndex}.title` as const}
-              render={({ field }) => (
-                <Input className="flex-1" placeholder="Item" {...field} />
-              )}
-            />
-            <Button type="button" variant="ghost" size="icon" onClick={() => remove(itemIndex)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => append({ title: '', completed: false })}
-        >
-          <Plus className="h-4 w-4 mr-1" /> Adicionar item
-        </Button>
-      </div>
-    );
   };
 
   // Filter active projects
@@ -614,21 +531,34 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Responsáveis</FormLabel>
-                    <div className="border rounded p-2 max-h-40 overflow-y-auto space-y-2">
-                      {users.map((user) => (
-                        <label key={user.id} className="flex items-center space-x-2">
-                          <Checkbox
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          {field.value && field.value.length
+                            ? users
+                                .filter((u) => field.value?.includes(u.id))
+                                .map((u) => getUserDisplayName(u))
+                                .join(', ')
+                            : 'Selecione'}
+                          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
+                        {users.map((user) => (
+                          <DropdownMenuCheckboxItem
+                            key={user.id}
                             checked={field.value?.includes(user.id)}
                             onCheckedChange={(checked) => {
                               const value = field.value || [];
                               if (checked) field.onChange([...value, user.id]);
                               else field.onChange(value.filter((id: string) => id !== user.id));
                             }}
-                          />
-                          <span>{getUserDisplayName(user)}</span>
-                        </label>
-                      ))}
-                    </div>
+                          >
+                            {getUserDisplayName(user)}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -643,38 +573,6 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                     <FormLabel>Etiquetas (separadas por vírgula)</FormLabel>
                     <FormControl>
                       <Input placeholder="ex: frontend, urgente" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Estimated Hours */}
-              <FormField
-                control={form.control}
-                name="estimatedHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horas Estimadas</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Actual Hours */}
-              <FormField
-                control={form.control}
-                name="actualHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horas Reais</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -797,43 +695,18 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendSubtask({ title: '', status: 'aberta', priority: 'baixa', assignedUserId: '', dueDate: '' })}
+                onClick={() =>
+                  appendSubtask({
+                    id: Date.now().toString(),
+                    title: '',
+                    status: 'aberta',
+                    priority: 'baixa',
+                    assignedUserId: '',
+                    dueDate: undefined,
+                  })
+                }
               >
                 <Plus className="h-4 w-4 mr-1" /> Adicionar Subtarefa
-              </Button>
-            </div>
-
-            {/* Checklists */}
-            <div className="space-y-2">
-              <h4 className="font-medium">Checklists</h4>
-              {checklistFields.map((checklist, index) => (
-                <div key={checklist.id} className="border p-2 rounded space-y-2">
-                  <FormField
-                    control={form.control}
-                    name={`checklists.${index}.title` as const}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Título</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <ChecklistItems index={index} />
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeChecklist(index)}>
-                    <X className="h-4 w-4" /> Remover
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => appendChecklist({ title: '', items: [] })}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Adicionar Checklist
               </Button>
             </div>
 

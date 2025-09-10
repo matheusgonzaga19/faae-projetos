@@ -107,28 +107,6 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
         </div>
       )}
 
-      {/* Progress Bar (if estimated hours) */}
-      {task.estimatedHours && (
-        <div className="mb-3">
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-            <span>Progresso</span>
-            <span>
-              {task.actualHours ? Number(task.actualHours).toFixed(1) : '0.0'}h / {Number(task.estimatedHours).toFixed(1)}h
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all"
-              style={{
-                width: task.actualHours && task.estimatedHours
-                  ? `${Math.min((Number(task.actualHours) / Number(task.estimatedHours)) * 100, 100)}%`
-                  : '0%'
-              }}
-            ></div>
-          </div>
-        </div>
-      )}
-
       {/* Files Indicator */}
       {task.files && task.files.length > 0 && (
         <div className="mb-3">

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, Clock, User, AlertTriangle, RefreshCw, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Calendar, User, AlertTriangle, RefreshCw, Edit2, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import TaskList from './TaskList';
 import { useToast } from '@/hooks/use-toast';
@@ -29,8 +29,6 @@ interface Task {
   startDate?: Date;
   tags?: string[];
   dueDate?: Date;
-  estimatedHours?: number;
-  actualHours?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -384,13 +382,6 @@ export default function KanbanBoard() {
                                       <div className="flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
                                         {format(new Date(task.dueDate), 'dd/MM', { locale: ptBR })}
-                                      </div>
-                                    )}
-
-                                    {task.estimatedHours && (
-                                      <div className="flex items-center">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        {task.estimatedHours}h
                                       </div>
                                     )}
 
