@@ -17,6 +17,7 @@ const PRIORITY_COLORS = {
   media: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-300",
   alta: "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-300",
   critica: "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-300",
+  urgente: "bg-red-600 text-white",
 };
 
 const PRIORITY_LABELS = {
@@ -24,6 +25,7 @@ const PRIORITY_LABELS = {
   media: "Média",
   alta: "Alta",
   critica: "Crítica",
+  urgente: "Urgente",
 };
 
 export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
@@ -179,10 +181,9 @@ export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
       {/* Complete Task Modal */}
       <TaskModal
         task={task}
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        defaultStatus={task.status}
-        defaultProjectId={task.projectId || undefined}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        projects={[]}
       />
     </>
   );

@@ -1,14 +1,34 @@
-export type { 
-  User, 
-  Task, 
-  Project, 
-  TaskWithDetails, 
-  ProjectWithTasks, 
-  UserWithStats,
+import type {
+  User,
+  Task,
+  Project,
+  TaskWithDetails,
+  ProjectWithTasks,
   File,
   Notification,
   TimeEntry,
+  Subtask,
+  Checklist,
+  ChecklistItem,
+  TaskRelationship,
+  CustomField,
 } from "@shared/schema";
+
+export type {
+  User,
+  Task,
+  Project,
+  TaskWithDetails,
+  ProjectWithTasks,
+  File,
+  Notification,
+  TimeEntry,
+  Subtask,
+  Checklist,
+  ChecklistItem,
+  TaskRelationship,
+  CustomField,
+};
 
 export interface DashboardStats {
   totalTasks: number;
