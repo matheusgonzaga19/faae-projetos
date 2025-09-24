@@ -100,7 +100,7 @@ export default function ProjectsManager() {
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [status, setStatus] = useState<"active" | "completed" | "on_hold" | "cancelled">("active");
-  const [type, setType] = useState<"stand_imobiliario" | "projeto_arquitetonico" | "projeto_estrutural" | "reforma" | "manutencao">("stand_imobiliario");
+  const [type, setType] = useState<string>("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [budget, setBudget] = useState("");
@@ -170,7 +170,7 @@ export default function ProjectsManager() {
     setClientEmail("");
     setClientPhone("");
     setStatus("active");
-    setType("stand_imobiliario");
+    setType("");
     setStartDate("");
     setEndDate("");
     setBudget("");
@@ -193,8 +193,8 @@ export default function ProjectsManager() {
     setClientName((project as any).clientName || "");
     setClientEmail((project as any).clientEmail || "");
     setClientPhone((project as any).clientPhone || "");
-    setStatus(project.status);
-    setType(project.type);
+    setStatus(project.status || "active");
+    setType(project.type || "");
     setStartDate((project as any).startDate || "");
     setEndDate((project as any).endDate || "");
     setBudget(project.budget?.toString() || "");
@@ -247,7 +247,7 @@ export default function ProjectsManager() {
       clientEmail: clientEmail.trim().toLowerCase() || null,
       clientPhone: clientPhone.trim() || null,
       status,
-      type,
+      type: type.trim(),
       startDate: startDate || null,
       endDate: endDate || null,
       budget: budget ? parseFloat(budget) : null,
@@ -275,6 +275,11 @@ export default function ProjectsManager() {
     reforma: "Reforma",
     manutencao: "Manutencao"
   } as const;
+
+  const getTypeLabel = (projectType?: string | null) => {
+    if (!projectType) return "Sem tipo";
+    return typeLabels[projectType as keyof typeof typeLabels] ?? projectType;
+  };
 
   const statusColors = {
     active: "bg-green-100 text-green-800",
@@ -346,7 +351,7 @@ export default function ProjectsManager() {
                 )}
                 <div className="flex items-center text-gray-600">
                   <Building className="w-4 h-4 mr-2" />
-                  {typeLabels[project.type as keyof typeof typeLabels]}
+                  {getTypeLabel(project.type)}
                 </div>
                 {(project as any).cnpj && (
                   <div className="flex items-center text-gray-600">
@@ -438,18 +443,12 @@ export default function ProjectsManager() {
 
               <div className="space-y-2">
                 <Label htmlFor="type">Tipo</Label>
-                <Select value={type} onValueChange={setType as any}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="stand_imobiliario">Stand Imobiliario</SelectItem>
-                    <SelectItem value="projeto_arquitetonico">Projeto Arquitetonico</SelectItem>
-                    <SelectItem value="projeto_estrutural">Projeto Estrutural</SelectItem>
-                    <SelectItem value="reforma">Reforma</SelectItem>
-                    <SelectItem value="manutencao">Manutencao</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="type"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  placeholder="Ex: Projeto arquitetônico"
+                />
               </div>
 
               <div className="space-y-2">
