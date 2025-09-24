@@ -19,6 +19,7 @@
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { normalizeTaskTags } from '@/utils/tags';
 import { DEFAULT_ALLOWED_SECTIONS } from '@/types/auth';
 
 // Helper functions
@@ -434,8 +435,12 @@ export const subscriptionService = {
     const tasksQuery = query(collection(db, 'tasks'), ...queryConstraints);
     
     const unsubscribe = onSnapshot(tasksQuery, (querySnapshot) => {
-      let tasks = querySnapshot.docs.map(fromFirestoreData);
-      
+      let tasks = querySnapshot.docs.map(fromFirestoreData).map((task: any) => ({
+        ...task,
+        assignedUserIds: task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []),
+        tags: normalizeTaskTags(task.tags),
+      }));
+
       callback(tasks);
     }, (error) => {
       console.error('Task subscription error:', error);
@@ -560,15 +565,27 @@ export const firebaseService = {
     return tasks.map((t: any) => ({
       ...t,
       assignedUserIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : []),
+      tags: normalizeTaskTags(t.tags),
     }));
   },
 
   async getTask(id: string) {
-    return await taskService.getTask(id);
+    const task = await taskService.getTask(id);
+    if (!task) return task;
+    return {
+      ...task,
+      assignedUserIds: task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []),
+      tags: normalizeTaskTags(task.tags),
+    };
   },
 
   async getTasksByProject(projectId: string) {
-    return await taskService.getTasks(projectId);
+    const projectTasks = await taskService.getTasks(projectId);
+    return projectTasks.map((task: any) => ({
+      ...task,
+      assignedUserIds: task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []),
+      tags: normalizeTaskTags(task.tags),
+    }));
   },
 
   async getTasksByUser(userId: string) {
@@ -579,7 +596,11 @@ export const firebaseService = {
         orderBy('createdAt', 'desc')
       )
     );
-    return querySnapshot.docs.map(fromFirestoreData);
+    return querySnapshot.docs.map(fromFirestoreData).map((task: any) => ({
+      ...task,
+      assignedUserIds: task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []),
+      tags: normalizeTaskTags(task.tags),
+    }));
   },
 
   async createTask(taskData: any) {
@@ -601,6 +622,7 @@ export const firebaseService = {
     if (!data.assigneeId || data.assigneeId === 'none') {
       delete data.assigneeId;
     }
+    data.tags = normalizeTaskTags(data.tags);
     return await taskService.addTask(data);
   },
 
@@ -624,6 +646,7 @@ export const firebaseService = {
       }
       delete payload.assignedUserId;
     }
+    payload.tags = normalizeTaskTags(payload.tags);
     return await taskService.updateTask(id, payload);
   },
 
