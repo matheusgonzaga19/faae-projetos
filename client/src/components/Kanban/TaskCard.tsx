@@ -27,6 +27,7 @@ const PRIORITY_LABELS = {
 
 export default function TaskCard({ task, onDragStart }: TaskCardProps) {
   const { user } = useAuth();
+  const isCanceled = task.status === 'cancelada';
   
   const getUserDisplayName = () => {
     if (task.assignedUser?.firstName && task.assignedUser?.lastName) {
@@ -72,7 +73,7 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
     <div
       draggable
       onDragStart={(e) => onDragStart(e, task.id)}
-      className="bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-600 cursor-move hover:shadow-md transition-shadow group"
+      className={`bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-600 cursor-move hover:shadow-md transition-shadow group ${isCanceled ? 'opacity-60' : ''}`}
     >
       {/* Priority and Drag Handle */}
       <div className="flex items-center justify-between mb-2">
@@ -86,7 +87,13 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
       </div>
 
       {/* Task Title */}
-      <h4 className="font-semibold mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors text-sm sm:text-base">
+      <h4
+        className={`font-semibold mb-2 line-clamp-2 transition-colors text-sm sm:text-base ${
+          isCanceled
+            ? 'line-through text-gray-500 dark:text-gray-400'
+            : 'group-hover:text-blue-600'
+        }`}
+      >
         {task.title}
       </h4>
 
