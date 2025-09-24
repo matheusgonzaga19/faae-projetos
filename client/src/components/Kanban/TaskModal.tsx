@@ -30,12 +30,30 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronDown, Loader2, Plus, X } from 'lucide-react';
+import {
+  CalendarIcon,
+  Check,
+  ChevronDown,
+  Loader2,
+  Plus,
+  X,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import type { Task } from '@/types';
+
+type TaskOption = Pick<Task, 'id' | 'title' | 'projectId'>;
 
 // Task creation schema
 const taskSchema = z.object({
@@ -120,6 +138,49 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
     queryFn: () => firebaseService.getAllUsers(),
     enabled: isOpen, // Only fetch when modal is open
   });
+
+  const { data: relationshipTaskResults = [], isLoading: isLoadingRelationshipTasks } = useQuery<TaskOption[]>({
+    queryKey: ['/api/tasks', 'relationship-options'],
+    queryFn: async () => {
+      const tasks = await firebaseService.getTasks({ limit: 500 });
+      return (tasks || []).map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        projectId: task.projectId ?? null,
+      }));
+    },
+    enabled: isOpen,
+  });
+
+  const selectableTasks = React.useMemo(() => {
+    const seen = new Set<string>();
+    const filtered: TaskOption[] = [];
+
+    for (const relationshipTask of relationshipTaskResults) {
+      if (!relationshipTask || !relationshipTask.id) continue;
+      if (task?.id && relationshipTask.id === task.id) continue;
+      if (seen.has(relationshipTask.id)) continue;
+
+      seen.add(relationshipTask.id);
+      filtered.push(relationshipTask);
+    }
+
+    return filtered.sort((a, b) => {
+      const firstTitle = a.title ?? '';
+      const secondTitle = b.title ?? '';
+      return firstTitle.localeCompare(secondTitle, 'pt-BR', { sensitivity: 'base' });
+    });
+  }, [relationshipTaskResults, task?.id]);
+
+  const projectNameById = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    projects.forEach(project => {
+      if (project.id) {
+        map[project.id] = project.name;
+      }
+    });
+    return map;
+  }, [projects]);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -751,8 +812,17 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                     render={({ field }) => (
                       <FormItem className="flex-1">
                         <FormControl>
-                          <Input placeholder="ID da tarefa" {...field} />
+                          <TaskRelationshipSelector
+                            ref={field.ref}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            tasks={selectableTasks}
+                            projectNameById={projectNameById}
+                            isLoading={isLoadingRelationshipTasks}
+                          />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -797,3 +867,133 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
     </Dialog>
   );
 }
+
+interface TaskRelationshipSelectorProps {
+  value?: string;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+  tasks: TaskOption[];
+  projectNameById: Record<string, string>;
+  isLoading: boolean;
+}
+
+const TaskRelationshipSelector = React.forwardRef<HTMLButtonElement, TaskRelationshipSelectorProps>(
+  ({ value = '', onChange, onBlur, tasks, projectNameById, isLoading }, ref) => {
+    const [open, setOpen] = React.useState(false);
+    const selectedTask = React.useMemo(() => tasks.find(task => task.id === value) ?? null, [tasks, value]);
+    const [fallbackTask, setFallbackTask] = React.useState<TaskOption | null>(null);
+
+    React.useEffect(() => {
+      let isActive = true;
+
+      if (value && !selectedTask) {
+        firebaseService
+          .getTask(value)
+          .then(task => {
+            if (!isActive) return;
+            if (task && task.id) {
+              setFallbackTask({
+                id: task.id,
+                title: task.title,
+                projectId: task.projectId ?? null,
+              });
+            } else {
+              setFallbackTask(null);
+            }
+          })
+          .catch(() => {
+            if (isActive) {
+              setFallbackTask(null);
+            }
+          });
+      } else {
+        setFallbackTask(null);
+      }
+
+      return () => {
+        isActive = false;
+      };
+    }, [value, selectedTask]);
+
+    const displayTask = selectedTask ?? fallbackTask;
+
+    const getProjectName = React.useCallback(
+      (projectId: string | null | undefined) => {
+        if (!projectId) return 'Sem projeto';
+        return projectNameById[projectId] || 'Projeto desconhecido';
+      },
+      [projectNameById],
+    );
+
+    const handleSelect = (taskId: string) => {
+      onChange(taskId);
+      setOpen(false);
+      onBlur?.();
+    };
+
+    const handleOpenChange = (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) {
+        onBlur?.();
+      }
+    };
+
+    return (
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={ref}
+            variant="outline"
+            role="combobox"
+            className={cn('w-full justify-between', !displayTask && !value && !isLoading && 'text-muted-foreground')}
+          >
+            {isLoading ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando tarefas...
+              </span>
+            ) : displayTask ? (
+              `${displayTask.title} (${getProjectName(displayTask.projectId ?? null)})`
+            ) : value ? (
+              `ID: ${value}`
+            ) : (
+              'Selecione uma tarefa'
+            )}
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar tarefa..." />
+            <CommandEmpty>{isLoading ? 'Carregando tarefas...' : 'Nenhuma tarefa encontrada.'}</CommandEmpty>
+            <CommandList>
+              {tasks.length > 0 && (
+                <CommandGroup heading="Tarefas">
+                  {tasks.map(task => {
+                    const projectName = getProjectName(task.projectId ?? null);
+                    const isSelected = displayTask?.id === task.id;
+                    return (
+                      <CommandItem
+                        key={task.id}
+                        value={`${task.title} ${projectName} ${task.id}`}
+                        onSelect={() => handleSelect(task.id)}
+                      >
+                        <Check className={cn('mr-2 h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')} />
+                        <div className="flex flex-col text-left">
+                          <span className="font-medium leading-none">{task.title}</span>
+                          <span className="text-xs text-muted-foreground">{projectName}</span>
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    );
+  },
+);
+
+TaskRelationshipSelector.displayName = 'TaskRelationshipSelector';
