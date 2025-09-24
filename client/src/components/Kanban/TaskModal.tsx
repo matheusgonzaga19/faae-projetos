@@ -124,13 +124,17 @@ interface TaskModalProps {
     subtasks?: any[] | null;
     relationships?: any[] | null;
   };
+  mode?: 'create' | 'edit' | 'view';
 }
 
-export default function TaskModal({ isOpen, onClose, projects, task }: TaskModalProps) {
+export default function TaskModal({ isOpen, onClose, projects, task, mode }: TaskModalProps) {
   const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false);
   const [isDueCalendarOpen, setIsDueCalendarOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const computedMode = mode ?? (task ? 'edit' : 'create');
+  const isViewMode = computedMode === 'view';
 
   // Fetch users for assignee selection
   const { data: users = [] } = useQuery({
@@ -329,6 +333,10 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
   });
 
   const onSubmit = (data: TaskFormData) => {
+    if (computedMode === 'view') {
+      return;
+    }
+
     const formattedData: any = {
       ...data,
       tags: data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
@@ -343,7 +351,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
       })),
       relationships: data.relationships,
     };
-    if (task?.id) {
+
+    if (computedMode === 'edit' && task?.id) {
       updateTaskMutation.mutate(formattedData);
     } else {
       createTaskMutation.mutate(formattedData);
@@ -366,11 +375,24 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
   // Filter active projects
   const activeProjects = projects.filter(project => project.status === 'active');
 
+  React.useEffect(() => {
+    if (isViewMode) {
+      setIsStartCalendarOpen(false);
+      setIsDueCalendarOpen(false);
+    }
+  }, [isViewMode]);
+
+  const modalTitle = computedMode === 'view'
+    ? 'Visualizar Tarefa'
+    : computedMode === 'edit'
+    ? 'Editar Tarefa'
+    : 'Criar Nova Tarefa';
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{task ? 'Editar Tarefa' : 'Criar Nova Tarefa'}</DialogTitle>
+          <DialogTitle>{modalTitle}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -383,10 +405,12 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 <FormItem>
                   <FormLabel>Título *</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Digite o título da tarefa" 
-                      {...field} 
+                    <Input
+                      placeholder="Digite o título da tarefa"
+                      {...field}
                       maxLength={200}
+                      disabled={isViewMode}
+                      readOnly={isViewMode}
                     />
                   </FormControl>
                   <FormMessage />
@@ -407,6 +431,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                       className="resize-none"
                       rows={3}
                       {...field}
+                      disabled={isViewMode}
+                      readOnly={isViewMode}
                     />
                   </FormControl>
                   <FormMessage />
@@ -421,9 +447,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Projeto *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger disabled={isViewMode}>
                         <SelectValue placeholder="Selecione um projeto" />
                       </SelectTrigger>
                     </FormControl>
@@ -459,9 +485,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Prioridade *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger disabled={isViewMode}>
                           <SelectValue placeholder="Selecione a prioridade" />
                         </SelectTrigger>
                       </FormControl>
@@ -484,9 +510,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger disabled={isViewMode}>
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
                       </FormControl>
@@ -511,7 +537,13 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data de Início</FormLabel>
-                    <Popover open={isStartCalendarOpen} onOpenChange={setIsStartCalendarOpen}>
+                    <Popover
+                      open={isViewMode ? false : isStartCalendarOpen}
+                      onOpenChange={(open) => {
+                        if (isViewMode) return;
+                        setIsStartCalendarOpen(open);
+                      }}
+                    >
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -520,6 +552,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                               "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
+                            disabled={isViewMode}
                           >
                             {field.value ? (
                               format(field.value, "dd/MM/yyyy", { locale: ptBR })
@@ -554,7 +587,13 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data de Vencimento *</FormLabel>
-                    <Popover open={isDueCalendarOpen} onOpenChange={setIsDueCalendarOpen}>
+                    <Popover
+                      open={isViewMode ? false : isDueCalendarOpen}
+                      onOpenChange={(open) => {
+                        if (isViewMode) return;
+                        setIsDueCalendarOpen(open);
+                      }}
+                    >
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -563,6 +602,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                               "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
+                            disabled={isViewMode}
                           >
                             {field.value ? (
                               format(field.value, "dd/MM/yyyy", { locale: ptBR })
@@ -602,34 +642,52 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Responsáveis</FormLabel>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                          {field.value && field.value.length
-                            ? users
-                                .filter((u) => field.value?.includes(u.id))
-                                .map((u) => getUserDisplayName(u))
-                                .join(', ')
-                            : 'Selecione'}
-                          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
-                        {users.map((user) => (
-                          <DropdownMenuCheckboxItem
-                            key={user.id}
-                            checked={field.value?.includes(user.id)}
-                            onCheckedChange={(checked) => {
-                              const value = field.value || [];
-                              if (checked) field.onChange([...value, user.id]);
-                              else field.onChange(value.filter((id: string) => id !== user.id));
-                            }}
-                          >
-                            {getUserDisplayName(user)}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(() => {
+                      const selectedUsers = field.value && field.value.length
+                        ? users
+                            .filter((u) => field.value?.includes(u.id))
+                            .map((u) => getUserDisplayName(u))
+                        : [];
+                      const assigneesDisplay = selectedUsers.length
+                        ? selectedUsers.join(', ')
+                        : 'Nenhum responsável';
+
+                      if (isViewMode) {
+                        return (
+                          <FormControl>
+                            <div className="w-full rounded-md border border-input bg-muted px-3 py-2 text-left text-sm text-foreground/80 dark:text-foreground/70">
+                              {assigneesDisplay}
+                            </div>
+                          </FormControl>
+                        );
+                      }
+
+                      return (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between">
+                              {selectedUsers.length ? assigneesDisplay : 'Selecione'}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
+                            {users.map((user) => (
+                              <DropdownMenuCheckboxItem
+                                key={user.id}
+                                checked={field.value?.includes(user.id)}
+                                onCheckedChange={(checked) => {
+                                  const value = field.value || [];
+                                  if (checked) field.onChange([...value, user.id]);
+                                  else field.onChange(value.filter((id: string) => id !== user.id));
+                                }}
+                              >
+                                {getUserDisplayName(user)}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    })()}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -643,7 +701,12 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                   <FormItem>
                     <FormLabel>Etiquetas (separadas por vírgula)</FormLabel>
                     <FormControl>
-                      <Input placeholder="ex: frontend, urgente" {...field} />
+                      <Input
+                        placeholder="ex: frontend, urgente"
+                        {...field}
+                        disabled={isViewMode}
+                        readOnly={isViewMode}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -663,7 +726,7 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                       <FormItem>
                         <FormLabel>Título</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled={isViewMode} readOnly={isViewMode} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -676,9 +739,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger disabled={isViewMode}>
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                             </FormControl>
@@ -699,9 +762,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Prioridade</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger disabled={isViewMode}>
                                 <SelectValue placeholder="Prioridade" />
                               </SelectTrigger>
                             </FormControl>
@@ -724,9 +787,9 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Responsável</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger disabled={isViewMode}>
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
                             </FormControl>
@@ -750,35 +813,39 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                         <FormItem>
                           <FormLabel>Vencimento</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="date" {...field} disabled={isViewMode} />
                           </FormControl>
                         </FormItem>
                       )}
                     />
                   </div>
 
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeSubtask(index)}>
-                    <X className="h-4 w-4" /> Remover
-                  </Button>
+                  {!isViewMode && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeSubtask(index)}>
+                      <X className="h-4 w-4" /> Remover
+                    </Button>
+                  )}
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  appendSubtask({
-                    id: Date.now().toString(),
-                    title: '',
-                    status: 'aberta',
-                    priority: 'baixa',
-                    assignedUserId: '',
-                    dueDate: undefined,
-                  })
-                }
-              >
-                <Plus className="h-4 w-4 mr-1" /> Adicionar Subtarefa
-              </Button>
+              {!isViewMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendSubtask({
+                      id: Date.now().toString(),
+                      title: '',
+                      status: 'aberta',
+                      priority: 'baixa',
+                      assignedUserId: '',
+                      dueDate: undefined,
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar Subtarefa
+                </Button>
+              )}
             </div>
 
             {/* Relationships */}
@@ -792,8 +859,8 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className="w-[140px]">
+                          <Select onValueChange={field.onChange} value={field.value} disabled={isViewMode}>
+                            <SelectTrigger className="w-[140px]" disabled={isViewMode}>
                               <SelectValue placeholder="Tipo" />
                             </SelectTrigger>
                             <SelectContent>
@@ -820,47 +887,64 @@ export default function TaskModal({ isOpen, onClose, projects, task }: TaskModal
                             tasks={selectableTasks}
                             projectNameById={projectNameById}
                             isLoading={isLoadingRelationshipTasks}
+                            disabled={isViewMode}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeRelationship(index)}>
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {!isViewMode && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRelationship(index)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => appendRelationship({ type: 'blocks', taskId: '' })}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Adicionar relação
-              </Button>
+              {!isViewMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendRelationship({ type: 'blocks', taskId: '' })}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar relação
+                </Button>
+              )}
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-4 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={createTaskMutation.isPending || updateTaskMutation.isPending || activeProjects.length === 0}
-              >
-                {(createTaskMutation.isPending || updateTaskMutation.isPending) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {task ? 'Salvar Alterações' : 'Criar Tarefa'}
-              </Button>
-            </div>
+            {isViewMode ? (
+              <div className="flex justify-end pt-4">
+                <Button type="button" onClick={handleClose}>
+                  Fechar
+                </Button>
+              </div>
+            ) : (
+              <div className="flex justify-end space-x-4 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    createTaskMutation.isPending ||
+                    updateTaskMutation.isPending ||
+                    activeProjects.length === 0
+                  }
+                >
+                  {(createTaskMutation.isPending || updateTaskMutation.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {computedMode === 'edit' ? 'Salvar Alterações' : 'Criar Tarefa'}
+                </Button>
+              </div>
+            )}
           </form>
         </Form>
       </DialogContent>
@@ -875,10 +959,11 @@ interface TaskRelationshipSelectorProps {
   tasks: TaskOption[];
   projectNameById: Record<string, string>;
   isLoading: boolean;
+  disabled?: boolean;
 }
 
 const TaskRelationshipSelector = React.forwardRef<HTMLButtonElement, TaskRelationshipSelectorProps>(
-  ({ value = '', onChange, onBlur, tasks, projectNameById, isLoading }, ref) => {
+  ({ value = '', onChange, onBlur, tasks, projectNameById, isLoading, disabled = false }, ref) => {
     const [open, setOpen] = React.useState(false);
     const selectedTask = React.useMemo(() => tasks.find(task => task.id === value) ?? null, [tasks, value]);
     const [fallbackTask, setFallbackTask] = React.useState<TaskOption | null>(null);
@@ -915,6 +1000,12 @@ const TaskRelationshipSelector = React.forwardRef<HTMLButtonElement, TaskRelatio
       };
     }, [value, selectedTask]);
 
+    React.useEffect(() => {
+      if (disabled && open) {
+        setOpen(false);
+      }
+    }, [disabled, open]);
+
     const displayTask = selectedTask ?? fallbackTask;
 
     const getProjectName = React.useCallback(
@@ -926,12 +1017,19 @@ const TaskRelationshipSelector = React.forwardRef<HTMLButtonElement, TaskRelatio
     );
 
     const handleSelect = (taskId: string) => {
+      if (disabled) return;
       onChange(taskId);
       setOpen(false);
       onBlur?.();
     };
 
     const handleOpenChange = (nextOpen: boolean) => {
+      if (disabled) {
+        if (!nextOpen) {
+          onBlur?.();
+        }
+        return;
+      }
       setOpen(nextOpen);
       if (!nextOpen) {
         onBlur?.();
@@ -939,13 +1037,18 @@ const TaskRelationshipSelector = React.forwardRef<HTMLButtonElement, TaskRelatio
     };
 
     return (
-      <Popover open={open} onOpenChange={handleOpenChange}>
+      <Popover open={disabled ? false : open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             ref={ref}
             variant="outline"
             role="combobox"
-            className={cn('w-full justify-between', !displayTask && !value && !isLoading && 'text-muted-foreground')}
+            className={cn(
+              'w-full justify-between',
+              !displayTask && !value && !isLoading && 'text-muted-foreground',
+              disabled && 'bg-muted text-foreground/80 hover:bg-muted'
+            )}
+            disabled={disabled}
           >
             {isLoading ? (
               <span className="flex items-center gap-2 text-muted-foreground">

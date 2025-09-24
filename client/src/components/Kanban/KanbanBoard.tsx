@@ -62,7 +62,8 @@ const PRIORITY_LABELS = {
 
 export default function KanbanBoard() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -170,7 +171,14 @@ export default function KanbanBoard() {
   };
 
   const handleEdit = (task: Task) => {
-    setEditingTask(task);
+    setSelectedTask(task);
+    setModalMode('edit');
+    setIsTaskModalOpen(true);
+  };
+
+  const handleView = (task: Task) => {
+    setSelectedTask(task);
+    setModalMode('view');
     setIsTaskModalOpen(true);
   };
 
@@ -298,7 +306,13 @@ export default function KanbanBoard() {
             {viewMode === 'board' ? 'Ver Lista' : 'Ver Kanban'}
           </Button>
 
-          <Button onClick={() => setIsTaskModalOpen(true)}>
+          <Button
+            onClick={() => {
+              setModalMode('create');
+              setSelectedTask(null);
+              setIsTaskModalOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Tarefa
           </Button>
@@ -334,19 +348,24 @@ export default function KanbanBoard() {
                         {columnTasks.map((task, index) => (
                           <Draggable key={task.id} draggableId={task.id} index={index}>
                             {(provided, snapshot) => (
-                              <Card
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`cursor-move transition-all duration-200 ${
-                                  snapshot.isDragging
-                                    ? 'rotate-2 shadow-lg ring-2 ring-blue-400'
-                                    : 'hover:shadow-md'
-                                } ${task.status === 'cancelada' ? 'opacity-60' : ''}`}
-                              >
-                                <CardHeader className="pb-2">
-                                  <div className="flex items-start justify-between">
-                                    <CardTitle
+                          <Card
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`cursor-move transition-all duration-200 ${
+                              snapshot.isDragging
+                                ? 'rotate-2 shadow-lg ring-2 ring-blue-400'
+                                : 'hover:shadow-md'
+                            } ${task.status === 'cancelada' ? 'opacity-60' : ''}`}
+                            onClick={() => {
+                              if (!snapshot.isDragging) {
+                                handleView(task);
+                              }
+                            }}
+                          >
+                            <CardHeader className="pb-2">
+                              <div className="flex items-start justify-between">
+                                <CardTitle
                                       className={`text-sm font-medium line-clamp-2 ${
                                         task.status === 'cancelada'
                                           ? 'line-through text-gray-500 dark:text-gray-400'
@@ -362,10 +381,26 @@ export default function KanbanBoard() {
                                       >
                                         {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
                                       </Badge>
-                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(task)}>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleEdit(task);
+                                        }}
+                                      >
                                         <Edit2 className="h-4 w-4" />
                                       </Button>
-                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(task)}>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-red-600"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleDelete(task);
+                                        }}
+                                      >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
@@ -377,6 +412,20 @@ export default function KanbanBoard() {
                                     <p className="text-xs text-gray-600 mb-2 line-clamp-2">
                                       {task.description}
                                     </p>
+                                  )}
+
+                                  {task.tags && task.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                      {task.tags.map((tag) => (
+                                        <Badge
+                                          key={tag}
+                                          variant="outline"
+                                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                        >
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   )}
 
                                   <div className="text-xs text-gray-500 mb-2">
@@ -432,9 +481,14 @@ export default function KanbanBoard() {
       {/* Task Creation Modal */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setSelectedTask(null);
+          setModalMode('create');
+        }}
         projects={projects}
-        task={editingTask || undefined}
+        task={selectedTask || undefined}
+        mode={modalMode}
       />
 
       <ConfirmDialog
