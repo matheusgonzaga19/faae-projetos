@@ -1,6 +1,7 @@
 import type {
   User,
   Task,
+  TaskTag,
   Project,
   TaskWithDetails,
   ProjectWithTasks,
@@ -17,6 +18,7 @@ import type {
 export type {
   User,
   Task,
+  TaskTag,
   Project,
   TaskWithDetails,
   ProjectWithTasks,

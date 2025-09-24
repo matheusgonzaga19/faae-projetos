@@ -71,6 +71,12 @@ export interface Project {
   managerUserId?: string | null;
 }
 
+export interface TaskTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -82,7 +88,7 @@ export interface Task {
   assignedUserIds?: string[]; // multiple responsáveis
   startDate?: Date | string | null;
   dueDate?: Date | string | null;
-  tags?: string[];
+  tags?: TaskTag[];
   relationships?: TaskRelationship[];
   customFields?: CustomField[];
   subtasks?: Subtask[];

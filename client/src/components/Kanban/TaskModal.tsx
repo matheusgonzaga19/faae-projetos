@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Select,
@@ -37,6 +39,7 @@ import {
   Loader2,
   Plus,
   X,
+  GripVertical,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -51,9 +54,18 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { Task } from '@/types';
+import type { Task, TaskTag } from '@/types';
+import { DEFAULT_TAG_COLOR, generateTagId, normalizeTaskTags } from '@/utils/tags';
 
 type TaskOption = Pick<Task, 'id' | 'title' | 'projectId'>;
+
+const tagSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1, 'Informe o nome da etiqueta'),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/i, 'Selecione uma cor válida'),
+});
 
 // Task creation schema
 const taskSchema = z.object({
@@ -69,7 +81,7 @@ const taskSchema = z.object({
     required_error: 'Data de vencimento é obrigatória',
   }),
   assignedUserIds: z.array(z.string()).optional(),
-  tags: z.string().optional(),
+  tags: z.array(tagSchema).default([]),
   subtasks: z
     .array(
       z.object({
@@ -92,6 +104,13 @@ const taskSchema = z.object({
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
+type TagFormValue = z.infer<typeof tagSchema>;
+
+const createEmptyTag = (): TagFormValue => ({
+  id: generateTagId(),
+  name: '',
+  color: DEFAULT_TAG_COLOR,
+});
 
 interface Project {
   id: string;
@@ -120,7 +139,7 @@ interface TaskModalProps {
     startDate?: Date | string | null;
     dueDate?: Date | string | null;
     assignedUserIds?: string[] | null;
-    tags?: string[] | null;
+    tags?: Array<TaskTag | string> | null;
     subtasks?: any[] | null;
     relationships?: any[] | null;
   };
@@ -197,10 +216,21 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
       startDate: new Date(),
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 1 week from now
       assignedUserIds: [],
-      tags: '',
+      tags: [],
       subtasks: [],
       relationships: [],
     },
+  });
+
+  const {
+    fields: tagFields,
+    append: appendTag,
+    remove: removeTag,
+    move: moveTag,
+  } = useFieldArray({
+    control: form.control,
+    name: 'tags',
+    keyName: 'fieldId',
   });
 
   const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask } = useFieldArray({
@@ -231,7 +261,7 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
             : (task as any).assignedUserId
             ? [(task as any).assignedUserId]
             : [],
-        tags: task.tags ? task.tags.join(', ') : '',
+        tags: normalizeTaskTags(task.tags ?? []),
         subtasks: task.subtasks || [],
         relationships: task.relationships || [],
       });
@@ -245,7 +275,7 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
         startDate: new Date(),
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         assignedUserIds: [],
-        tags: '',
+        tags: [],
         subtasks: [],
         relationships: [],
       });
@@ -261,8 +291,11 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
         throw new Error('Projeto selecionado não encontrado');
       }
 
+      const sanitizedTags = normalizeTaskTags(taskData.tags);
+
       const newTask = {
         ...taskData,
+        tags: sanitizedTags,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -294,6 +327,7 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
   const updateTaskMutation = useMutation({
     mutationFn: async (taskData: TaskFormData) => {
       if (!task) throw new Error('Tarefa não encontrada');
+      const sanitizedTags = normalizeTaskTags(taskData.tags);
       const updated = {
         title: taskData.title,
         description: taskData.description || '',
@@ -303,11 +337,7 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
         startDate: taskData.startDate,
         dueDate: taskData.dueDate,
         assignedUserIds: taskData.assignedUserIds || [],
-        tags: Array.isArray(taskData.tags)
-          ? taskData.tags
-          : taskData.tags
-          ? taskData.tags.split(',').map(t => t.trim()).filter(Boolean)
-          : [],
+        tags: sanitizedTags,
         subtasks: taskData.subtasks?.map(st => ({
           ...st,
           assignedUserIds:
@@ -337,9 +367,11 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
       return;
     }
 
+    const sanitizedTags = normalizeTaskTags(data.tags);
+
     const formattedData: any = {
       ...data,
-      tags: data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      tags: sanitizedTags,
       assignedUserIds: data.assignedUserIds || [],
       subtasks: data.subtasks?.map(st => ({
         ...st,
@@ -362,6 +394,22 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
   const handleClose = () => {
     form.reset();
     onClose();
+  };
+
+  const handleAddTag = () => {
+    appendTag(createEmptyTag());
+  };
+
+  const handleTagDragEnd = (result: DropResult) => {
+    if (!result.destination) {
+      return;
+    }
+
+    if (result.destination.index === result.source.index) {
+      return;
+    }
+
+    moveTag(result.source.index, result.destination.index);
   };
 
   // Get user display name
@@ -697,17 +745,137 @@ export default function TaskModal({ isOpen, onClose, projects, task, mode }: Tas
               <FormField
                 control={form.control}
                 name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Etiquetas (separadas por vírgula)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="ex: frontend, urgente"
-                        {...field}
-                        disabled={isViewMode}
-                        readOnly={isViewMode}
-                      />
-                    </FormControl>
+                render={() => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Etiquetas</FormLabel>
+                    <FormDescription>
+                      Escreva o nome, escolha uma cor e arraste para organizar a prioridade.
+                    </FormDescription>
+                    <div className="space-y-2">
+                      {tagFields.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {isViewMode
+                            ? 'Nenhuma etiqueta adicionada.'
+                            : 'Nenhuma etiqueta adicionada. Clique em "Adicionar etiqueta" para começar.'}
+                        </p>
+                      ) : (
+                        <DragDropContext onDragEnd={handleTagDragEnd}>
+                          <Droppable droppableId="task-tags">
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className="space-y-2"
+                              >
+                                {tagFields.map((tag, index) => {
+                                  const tagErrors = form.formState.errors.tags;
+                                  const nameError =
+                                    Array.isArray(tagErrors) && tagErrors[index]?.name
+                                      ? (tagErrors[index]?.name?.message as string)
+                                      : undefined;
+                                  const colorError =
+                                    Array.isArray(tagErrors) && tagErrors[index]?.color
+                                      ? (tagErrors[index]?.color?.message as string)
+                                      : undefined;
+                                  const rawId = (tag as { id?: string }).id;
+                                  const draggableId = rawId && rawId.trim()
+                                    ? rawId
+                                    : tag.fieldId || `tag-${index}`;
+
+                                  return (
+                                    <Draggable
+                                      key={tag.fieldId}
+                                      draggableId={draggableId}
+                                      index={index}
+                                      isDragDisabled={isViewMode}
+                                    >
+                                      {(providedDraggable) => (
+                                        <div
+                                          ref={providedDraggable.innerRef}
+                                          {...providedDraggable.draggableProps}
+                                          className="space-y-2 rounded-md border border-border bg-background p-3"
+                                        >
+                                          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                            <div
+                                              {...providedDraggable.dragHandleProps}
+                                              className={cn(
+                                                'flex h-10 w-10 items-center justify-center rounded-md border border-dashed border-muted text-muted-foreground',
+                                                isViewMode && 'cursor-default opacity-60'
+                                              )}
+                                            >
+                                              <GripVertical className="h-4 w-4" />
+                                            </div>
+                                            <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                                              <FormField
+                                                control={form.control}
+                                                name={`tags.${index}.name` as const}
+                                                render={({ field: nameField }) => (
+                                                  <FormItem className="flex-1">
+                                                    <FormControl>
+                                                      <Input
+                                                        placeholder="Nome da etiqueta"
+                                                        {...nameField}
+                                                        disabled={isViewMode}
+                                                        readOnly={isViewMode}
+                                                      />
+                                                    </FormControl>
+                                                  </FormItem>
+                                                )}
+                                              />
+                                              <FormField
+                                                control={form.control}
+                                                name={`tags.${index}.color` as const}
+                                                render={({ field: colorField }) => (
+                                                  <FormItem>
+                                                    <FormControl>
+                                                      <Input
+                                                        type="color"
+                                                        {...colorField}
+                                                        disabled={isViewMode}
+                                                        readOnly={isViewMode}
+                                                        className="h-10 w-16 p-1"
+                                                      />
+                                                    </FormControl>
+                                                  </FormItem>
+                                                )}
+                                              />
+                                            </div>
+                                            {!isViewMode && (
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => removeTag(index)}
+                                                className="text-muted-foreground hover:text-destructive"
+                                              >
+                                                <X className="h-4 w-4" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                          {(nameError || colorError) && (
+                                            <div className="space-y-1 text-xs text-destructive">
+                                              {nameError && <p>{nameError}</p>}
+                                              {colorError && <p>{colorError}</p>}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  );
+                                })}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        </DragDropContext>
+                      )}
+                    </div>
+                    {!isViewMode && (
+                      <Button type="button" variant="outline" size="sm" onClick={handleAddTag}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar etiqueta
+                      </Button>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

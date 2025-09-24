@@ -13,6 +13,8 @@ import TaskModal from './TaskModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import type { TaskTag } from '@/types';
+import { DEFAULT_TAG_COLOR, getTagTextColor } from '@/utils/tags';
 
 type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
 type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica';
@@ -27,7 +29,7 @@ interface Task {
   assigneeId?: string;
   assignedUserIds?: string[];
   startDate?: Date;
-  tags?: string[];
+  tags?: TaskTag[];
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -74,6 +76,15 @@ export default function KanbanBoard() {
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const normalizedTagFilter = tagFilter.trim().toLowerCase();
+
+  const matchesTagFilter = (task: Task) => {
+    if (!normalizedTagFilter) return true;
+    if (!task.tags || task.tags.length === 0) return false;
+
+    return task.tags.some(tag => tag.name.toLowerCase().includes(normalizedTagFilter));
+  };
 
   // Fetch tasks and projects with optimized queries and user filtering
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
@@ -151,7 +162,7 @@ export default function KanbanBoard() {
         task.assigneeId === selectedUserId ||
         (task.assignedUserIds && task.assignedUserIds.includes(selectedUserId));
       const priorityMatch = !selectedPriority || task.priority === selectedPriority;
-      const tagMatch = !tagFilter || (task.tags && task.tags.includes(tagFilter));
+      const tagMatch = matchesTagFilter(task);
       return statusMatch && projectMatch && userMatch && priorityMatch && tagMatch;
     });
   };
@@ -165,7 +176,7 @@ export default function KanbanBoard() {
         task.assigneeId === selectedUserId ||
         (task.assignedUserIds && task.assignedUserIds.includes(selectedUserId));
       const priorityMatch = !selectedPriority || task.priority === selectedPriority;
-      const tagMatch = !tagFilter || (task.tags && task.tags.includes(tagFilter));
+      const tagMatch = matchesTagFilter(task);
       return statusMatch && projectMatch && userMatch && priorityMatch && tagMatch;
     });
   };
@@ -293,7 +304,7 @@ export default function KanbanBoard() {
           <Input
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
-            placeholder="Tag"
+            placeholder="Filtrar etiqueta"
             className="w-32"
           />
 
@@ -415,16 +426,24 @@ export default function KanbanBoard() {
                                   )}
 
                                   {task.tags && task.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mb-2">
-                                      {task.tags.map((tag) => (
-                                        <Badge
-                                          key={tag}
-                                          variant="outline"
-                                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                                        >
-                                          {tag}
-                                        </Badge>
-                                      ))}
+                                    <div className="mb-2 flex flex-wrap gap-1">
+                                      {task.tags.map((tag) => {
+                                        const backgroundColor = tag.color || DEFAULT_TAG_COLOR;
+                                        const textColor = getTagTextColor(backgroundColor);
+                                        return (
+                                          <Badge
+                                            key={tag.id}
+                                            variant="outline"
+                                            className="text-xs border-transparent"
+                                            style={{
+                                              backgroundColor,
+                                              color: textColor,
+                                            }}
+                                          >
+                                            {tag.name}
+                                          </Badge>
+                                        );
+                                      })}
                                     </div>
                                   )}
 

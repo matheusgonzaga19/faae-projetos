@@ -2,8 +2,10 @@ import React from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Task } from '@/types';
 import { Edit2, Trash2 } from 'lucide-react';
+import { DEFAULT_TAG_COLOR, getTagTextColor } from '@/utils/tags';
 
 interface TaskListProps {
   tasks: Task[];
@@ -44,7 +46,26 @@ export default function TaskList({ tasks, onEdit, onDelete }: TaskListProps) {
                   ? task.assignedUserIds.join(', ')
                   : ''}
               </td>
-              <td className="px-2 py-2">{task.tags?.join(', ')}</td>
+              <td className="px-2 py-2">
+                {task.tags && task.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {task.tags.map((tag) => {
+                      const backgroundColor = tag.color || DEFAULT_TAG_COLOR;
+                      const textColor = getTagTextColor(backgroundColor);
+                      return (
+                        <Badge
+                          key={tag.id}
+                          variant="outline"
+                          className="text-xs border-transparent"
+                          style={{ backgroundColor, color: textColor }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </td>
               <td className="px-2 py-2 flex space-x-2">
                 <Button size="icon" variant="ghost" onClick={() => onEdit(task)}>
                   <Edit2 className="h-4 w-4" />
