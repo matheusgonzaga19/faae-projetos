@@ -342,11 +342,17 @@ export default function KanbanBoard() {
                                   snapshot.isDragging
                                     ? 'rotate-2 shadow-lg ring-2 ring-blue-400'
                                     : 'hover:shadow-md'
-                                }`}
+                                } ${task.status === 'cancelada' ? 'opacity-60' : ''}`}
                               >
                                 <CardHeader className="pb-2">
                                   <div className="flex items-start justify-between">
-                                    <CardTitle className="text-sm font-medium line-clamp-2">
+                                    <CardTitle
+                                      className={`text-sm font-medium line-clamp-2 ${
+                                        task.status === 'cancelada'
+                                          ? 'line-through text-gray-500 dark:text-gray-400'
+                                          : ''
+                                      }`}
+                                    >
                                       {task.title}
                                     </CardTitle>
                                     <div className="flex items-center gap-1 ml-2">
