@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, User, AlertTriangle, RefreshCw, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Calendar, User, AlertTriangle, RefreshCw, Edit2, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import TaskList from './TaskList';
 import { useToast } from '@/hooks/use-toast';
@@ -72,18 +72,56 @@ export default function KanbanBoard() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedPriority, setSelectedPriority] = useState<string>('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('');
-  const [tagFilter, setTagFilter] = useState<string>('');
+  const [tagSearch, setTagSearch] = useState<string>('');
+  const [selectedTags, setSelectedTags] = useState<TaskTag[]>([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const tagSuggestionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const normalizedTagFilter = tagFilter.trim().toLowerCase();
+  useEffect(() => {
+    return () => {
+      if (tagSuggestionsTimeoutRef.current) {
+        clearTimeout(tagSuggestionsTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const normalizedTagSearch = tagSearch.trim().toLowerCase();
+
+  const resolveTagIdentifier = (tag: TaskTag) => {
+    const rawId = typeof tag.id === 'string' ? tag.id.trim() : '';
+    if (rawId) {
+      return rawId;
+    }
+
+    const normalizedName = (tag.name || '').trim().toLowerCase();
+    const normalizedColor = (tag.color || DEFAULT_TAG_COLOR).trim().toLowerCase();
+
+    return `${normalizedName}-${normalizedColor}`;
+  };
 
   const matchesTagFilter = (task: Task) => {
-    if (!normalizedTagFilter) return true;
+    if (selectedTags.length === 0 && !normalizedTagSearch) return true;
     if (!task.tags || task.tags.length === 0) return false;
 
-    return task.tags.some(tag => tag.name.toLowerCase().includes(normalizedTagFilter));
+    if (selectedTags.length > 0) {
+      const taskTagIds = new Set(task.tags.map(resolveTagIdentifier));
+      const hasAllSelectedTags = selectedTags.every(tag => taskTagIds.has(tag.id));
+
+      if (!hasAllSelectedTags) {
+        return false;
+      }
+    }
+
+    if (normalizedTagSearch) {
+      return task.tags.some(tag =>
+        tag.name.toLowerCase().includes(normalizedTagSearch)
+      );
+    }
+
+    return true;
   };
 
   // Fetch tasks and projects with optimized queries and user filtering
@@ -109,10 +147,80 @@ export default function KanbanBoard() {
     refetchInterval: 60000,
   });
 
+  const availableTags = useMemo(() => {
+    const map = new Map<string, TaskTag>();
+
+    tasks.forEach(task => {
+      task.tags?.forEach(tag => {
+        if (!tag) {
+          return;
+        }
+
+        const identifier = resolveTagIdentifier(tag);
+        const name = tag.name.trim();
+        if (!name) {
+          return;
+        }
+
+        const color = (tag.color || '').trim() || DEFAULT_TAG_COLOR;
+
+        if (!map.has(identifier)) {
+          map.set(identifier, {
+            id: identifier,
+            name,
+            color,
+          });
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'pt-BR')
+    );
+  }, [tasks]);
+
+  const filteredTagOptions = useMemo(() => {
+    if (availableTags.length === 0) {
+      return [] as TaskTag[];
+    }
+
+    return availableTags.filter(tag => {
+      if (selectedTags.some(selected => selected.id === tag.id)) {
+        return false;
+      }
+
+      if (!normalizedTagSearch) {
+        return true;
+      }
+
+      return tag.name.toLowerCase().includes(normalizedTagSearch);
+    });
+  }, [availableTags, normalizedTagSearch, selectedTags]);
+
+  const handleTagSelect = (tag: TaskTag) => {
+    setSelectedTags(prev => {
+      if (prev.some(selected => selected.id === tag.id)) {
+        return prev;
+      }
+
+      return [...prev, tag];
+    });
+    setTagSearch('');
+    if (tagSuggestionsTimeoutRef.current) {
+      clearTimeout(tagSuggestionsTimeoutRef.current);
+      tagSuggestionsTimeoutRef.current = null;
+    }
+    setShowTagSuggestions(true);
+  };
+
+  const handleTagRemove = (tagId: string) => {
+    setSelectedTags(prev => prev.filter(tag => tag.id !== tagId));
+  };
+
   // Update task status mutation
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: TaskStatus }) => {
-      await firebaseService.updateTask(taskId, { 
+      await firebaseService.updateTask(taskId, {
         status: newStatus,
         updatedAt: new Date()
       });
@@ -301,12 +409,115 @@ export default function KanbanBoard() {
           </select>
 
           {/* Tag Filter */}
-          <Input
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            placeholder="Filtrar etiqueta"
-            className="w-32"
-          />
+          <div className="w-64 self-start">
+            <div className="relative">
+              <Input
+                value={tagSearch}
+                onChange={(event) => {
+                  if (tagSuggestionsTimeoutRef.current) {
+                    clearTimeout(tagSuggestionsTimeoutRef.current);
+                    tagSuggestionsTimeoutRef.current = null;
+                  }
+                  setTagSearch(event.target.value);
+                  setShowTagSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (tagSuggestionsTimeoutRef.current) {
+                    clearTimeout(tagSuggestionsTimeoutRef.current);
+                    tagSuggestionsTimeoutRef.current = null;
+                  }
+                  setShowTagSuggestions(true);
+                }}
+                onBlur={() => {
+                  if (tagSuggestionsTimeoutRef.current) {
+                    clearTimeout(tagSuggestionsTimeoutRef.current);
+                  }
+                  tagSuggestionsTimeoutRef.current = setTimeout(() => {
+                    setShowTagSuggestions(false);
+                    tagSuggestionsTimeoutRef.current = null;
+                  }, 100);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Backspace' && !tagSearch && selectedTags.length > 0) {
+                    event.preventDefault();
+                    const lastTag = selectedTags[selectedTags.length - 1];
+                    if (lastTag) {
+                      handleTagRemove(lastTag.id);
+                    }
+                  } else if (event.key === 'Escape') {
+                    if (tagSuggestionsTimeoutRef.current) {
+                      clearTimeout(tagSuggestionsTimeoutRef.current);
+                      tagSuggestionsTimeoutRef.current = null;
+                    }
+                    setShowTagSuggestions(false);
+                  } else if (event.key === 'Enter') {
+                    const firstOption = filteredTagOptions[0];
+                    if (firstOption) {
+                      event.preventDefault();
+                      handleTagSelect(firstOption);
+                    }
+                  }
+                }}
+                placeholder={selectedTags.length > 0 ? 'Buscar mais etiquetas' : 'Filtrar etiqueta'}
+                className="w-full"
+              />
+              {showTagSuggestions && (
+                <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                  {availableTags.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Nenhuma etiqueta disponível.</div>
+                  ) : filteredTagOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Nenhuma etiqueta encontrada.</div>
+                  ) : (
+                    <ul className="max-h-48 overflow-y-auto py-1 text-sm text-gray-700">
+                      {filteredTagOptions.map((tag) => (
+                        <li key={tag.id}>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              handleTagSelect(tag);
+                            }}
+                          >
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
+                            />
+                            <span>{tag.name}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+            {selectedTags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedTags.map((tag) => {
+                  const backgroundColor = tag.color || DEFAULT_TAG_COLOR;
+                  const textColor = getTagTextColor(backgroundColor);
+                  return (
+                    <span
+                      key={tag.id}
+                      className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium shadow-sm"
+                      style={{ backgroundColor, color: textColor }}
+                    >
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => handleTagRemove(tag.id)}
+                        className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/10 text-[10px] text-current hover:bg-black/20 focus:outline-none"
+                        aria-label={`Remover etiqueta ${tag.name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <Button onClick={() => refetchTasks()} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
