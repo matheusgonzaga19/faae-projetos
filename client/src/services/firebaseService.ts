@@ -646,7 +646,9 @@ export const firebaseService = {
       }
       delete payload.assignedUserId;
     }
-    payload.tags = normalizeTaskTags(payload.tags);
+    if (payload.tags !== undefined) {
+      payload.tags = normalizeTaskTags(payload.tags);
+    }
     return await taskService.updateTask(id, payload);
   },
 
