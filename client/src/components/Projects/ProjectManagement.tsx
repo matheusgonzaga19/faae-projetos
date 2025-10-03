@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,9 +58,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import type { ProjectWithTasks, User, TaskWithDetails } from "@shared/schema";
-import TaskModal from "@/components/Kanban/TaskModal";
+import type { ProjectWithTasks, User } from "@shared/schema";
+import { firebaseService } from "@/services/firebaseService";
 
 interface ProjectModalProps {
   project?: ProjectWithTasks;
@@ -439,6 +445,7 @@ function ProjectCard({ project, onSelectProject }: { project: ProjectWithTasks; 
 export default function ProjectManagement() {
   const { user } = useAuth();
   const [selectedProject, setSelectedProject] = useState<ProjectWithTasks | null>(null);
+  const [isProjectDrawerOpen, setIsProjectDrawerOpen] = useState(false);
 
   const { data: projects = [], isLoading } = useQuery<ProjectWithTasks[]>({
     queryKey: ['/api/projects'],
@@ -446,16 +453,8 @@ export default function ProjectManagement() {
 
   const handleSelectProject = (project: ProjectWithTasks) => {
     setSelectedProject(project);
+    setIsProjectDrawerOpen(true);
   };
-
-  if (selectedProject) {
-    return (
-      <ProjectDetails 
-        project={selectedProject} 
-        onBack={() => setSelectedProject(null)} 
-      />
-    );
-  }
 
   if (isLoading) {
     return (
@@ -525,119 +524,546 @@ export default function ProjectManagement() {
           ))}
         </div>
       )}
+
+      <ProjectDetailsDrawer
+        open={isProjectDrawerOpen}
+        onOpenChange={(open) => {
+          setIsProjectDrawerOpen(open);
+          if (!open) {
+            setSelectedProject(null);
+          }
+        }}
+        project={selectedProject}
+      />
     </div>
   );
 }
 
-// Componente ProjectDetails será criado em seguida
-function ProjectDetails({ project, onBack }: { project: ProjectWithTasks; onBack: () => void }) {
-  const { user } = useAuth();
+interface ProjectDetailsDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  project: ProjectWithTasks | null;
+}
+
+function ProjectDetailsDrawer({ open, onOpenChange, project }: ProjectDetailsDrawerProps) {
+  const { toast } = useToast();
+  const queryClientInstance = useQueryClient();
+  const [noteText, setNoteText] = useState("");
+  const [localNotes, setLocalNotes] = useState<{ id: string; text: string; createdAt: Date }[]>([]);
+  const [formState, setFormState] = useState({
+    name: "",
+    description: "",
+    status: "active",
+    priority: "media",
+    type: "stand_imobiliario",
+    startDate: "",
+    endDate: "",
+    budget: "",
+    clientName: "",
+    clientEmail: "",
+    clientPhone: "",
+    managerUserId: "",
+    companyName: "",
+    location: "",
+  });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users', 'project-drawer'],
+    queryFn: () => firebaseService.getAllUsers(),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (!project || !open) {
+      return;
+    }
+
+    setFormState({
+      name: project.name || "",
+      description: project.description || "",
+      status: project.status || "active",
+      priority: project.priority || "media",
+      type: project.type || "stand_imobiliario",
+      startDate: project.startDate ? format(new Date(project.startDate), 'yyyy-MM-dd') : "",
+      endDate: project.endDate ? format(new Date(project.endDate), 'yyyy-MM-dd') : "",
+      budget: project.budget != null ? String(project.budget) : "",
+      clientName: project.clientName || "",
+      clientEmail: project.clientEmail || "",
+      clientPhone: project.clientPhone || "",
+      managerUserId: project.managerUserId || "",
+      companyName: (project as any).companyName || "",
+      location: project.location || "",
+    });
+    setNoteText("");
+    setLocalNotes([]);
+  }, [project, open]);
+
+  const buildPayload = (override: Partial<typeof formState> = {}) => {
+    const merged = { ...formState, ...override };
+    const parsedBudget = parseFloat(merged.budget);
+
+    return {
+      name: merged.name,
+      description: merged.description,
+      status: merged.status,
+      priority: merged.priority,
+      type: merged.type,
+      startDate: merged.startDate || null,
+      endDate: merged.endDate || null,
+      budget: merged.budget ? (Number.isNaN(parsedBudget) ? null : parsedBudget) : null,
+      clientName: merged.clientName || null,
+      clientEmail: merged.clientEmail || null,
+      clientPhone: merged.clientPhone || null,
+      managerUserId: merged.managerUserId || null,
+      companyName: merged.companyName || null,
+      location: merged.location || null,
+    };
+  };
+
+  const updateProjectMutation = useMutation({
+    mutationFn: async (payload: ReturnType<typeof buildPayload>) => {
+      if (!project) return;
+      await apiRequest('PUT', `/api/projects/${project.id}`, payload);
+    },
+    onSuccess: () => {
+      queryClientInstance.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({
+        title: "Projeto atualizado",
+        description: "As alterações foram salvas com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao atualizar projeto",
+        description: error?.message || "Não foi possível salvar as alterações.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!project) return;
+    updateProjectMutation.mutate(buildPayload());
+  };
+
+  const handleToggleCompletion = () => {
+    if (!project) return;
+    const nextStatus = formState.status === 'completed' ? 'active' : 'completed';
+    setFormState(prev => ({ ...prev, status: nextStatus }));
+    updateProjectMutation.mutate(buildPayload({ status: nextStatus }));
+  };
+
+  const handleAddNote = () => {
+    const trimmed = noteText.trim();
+    if (!trimmed) {
+      toast({
+        title: "Mensagem vazia",
+        description: "Adicione um comentário antes de salvar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLocalNotes(prev => [
+      { id: `${Date.now()}`, text: trimmed, createdAt: new Date() },
+      ...prev,
+    ]);
+    setNoteText("");
+    toast({ title: "Comentário registrado", description: "Comentário salvo localmente." });
+  };
+
+  const totalTasks = project?.tasks?.length ?? 0;
+  const completedTasks = project?.tasks?.filter(task => task.status === 'concluida').length ?? 0;
+  const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const statusLabel = {
+    active: 'Ativo',
+    completed: 'Concluído',
+    on_hold: 'Em pausa',
+    cancelled: 'Cancelado',
+  }[formState.status as keyof typeof statusLabel] || 'Ativo';
+
+  const statusTone = (() => {
+    switch (formState.status) {
+      case 'completed':
+        return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      case 'on_hold':
+        return 'bg-amber-500/20 text-amber-200 border border-amber-500/40';
+      case 'cancelled':
+        return 'bg-red-500/20 text-red-200 border border-red-500/40';
+      default:
+        return 'bg-blue-500/20 text-blue-200 border border-blue-500/40';
+    }
+  })();
+
+  const manager = users.find(user => user.id === formState.managerUserId);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <Button onClick={onBack} variant="outline">
-          ← Voltar aos Projetos
-        </Button>
-        
-        <ProjectModal
-          project={project}
-          trigger={
-            <Button>
-              <Edit className="w-4 h-4 mr-2" />
-              Editar Projeto
-            </Button>
-          }
-        />
-      </div>
-      
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
-          <p className="text-gray-600 dark:text-gray-400">{project.description}</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informações do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Cliente</Label>
-                <p>{project.clientName || "Não informado"}</p>
-              </div>
-              <div>
-                <Label>Email do Cliente</Label>
-                <p>{project.clientEmail || "Não informado"}</p>
-              </div>
-              <div>
-                <Label>Orçamento</Label>
-                <p>{project.budget ? `R$ ${project.budget.toLocaleString()}` : "Não informado"}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Tarefas do Projeto</CardTitle>
-                <TaskModal
-                  trigger={
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Nova Tarefa
-                    </Button>
-                  }
-                  defaultStatus="aberta"
-                  defaultProjectId={project.id}
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {project.tasks && project.tasks.length > 0 ? (
-                <div className="space-y-3">
-                  {project.tasks.map((task) => (
-                    <TaskModal
-                      key={task.id}
-                      task={task}
-                      trigger={
-                        <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
-                          <div>
-                            <h4 className="font-medium">{task.title}</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{task.description}</p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{task.status}</Badge>
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                          </div>
-                        </div>
-                      }
-                    />
-                  ))}
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {project ? (
+        <SheetContent side="right" className="w-full sm:max-w-xl lg:max-w-3xl p-0 overflow-hidden">
+          <div className="flex h-full flex-col bg-slate-950 text-slate-100">
+            <div className="border-b border-slate-800 px-6 py-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <SheetHeader className="space-y-2">
+                  <SheetTitle className="text-xl font-semibold text-white">
+                    {formState.name || project.name}
+                  </SheetTitle>
+                  <SheetDescription className="text-slate-400">
+                    Atualize rapidamente os campos principais e acompanhe o andamento deste projeto.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={handleToggleCompletion}
+                    disabled={updateProjectMutation.isPending}
+                    className={formState.status === 'completed'
+                      ? 'rounded-full border border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800'
+                      : 'rounded-full bg-emerald-500 text-white hover:bg-emerald-600'}
+                  >
+                    {formState.status === 'completed' ? 'Reabrir projeto' : 'Marcar como concluído'}
+                  </Button>
+                  <Badge className={`rounded-full px-3 py-1 text-xs ${statusTone}`}>
+                    {statusLabel}
+                  </Badge>
+                  {progress > 0 && (
+                    <span className="flex items-center rounded-full bg-slate-800/70 px-3 py-1 text-xs text-slate-300">
+                      <Clock className="mr-1.5 h-3.5 w-3.5 text-indigo-300" />
+                      {progress}% concluído
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-8 space-y-4">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto" />
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-8 px-6 py-6">
+                <section className="space-y-4">
                   <div>
-                    <p className="text-gray-500 mb-4">Nenhuma tarefa criada para este projeto</p>
-                    <TaskModal
-                      trigger={
-                        <Button variant="outline">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Criar Primeira Tarefa
-                        </Button>
-                      }
-                      defaultStatus="aberta"
-                      defaultProjectId={project.id}
+                    <Label className="text-xs uppercase text-slate-400">Nome do projeto</Label>
+                    <Input
+                      value={formState.name}
+                      onChange={(event) => setFormState(prev => ({ ...prev, name: event.target.value }))}
+                      placeholder="Ex: Retrofit Edifício Tietê"
+                      className="mt-1 border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
+                  <div>
+                    <Label className="text-xs uppercase text-slate-400">Descrição</Label>
+                    <Textarea
+                      value={formState.description}
+                      onChange={(event) => setFormState(prev => ({ ...prev, description: event.target.value }))}
+                      rows={4}
+                      placeholder="Compartilhe os objetivos, escopo e pontos de atenção deste projeto."
+                      className="mt-1 resize-none border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                    />
+                  </div>
+                </section>
+
+                <section className="grid gap-4 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase text-slate-400">Responsável</Label>
+                    <Select
+                      value={formState.managerUserId}
+                      onValueChange={(value) => setFormState(prev => ({ ...prev, managerUserId: value }))}
+                    >
+                      <SelectTrigger className="border-slate-800 bg-slate-900/60 text-slate-100">
+                        <SelectValue placeholder="Selecione o responsável" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Não definido</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.firstName || user.lastName
+                              ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+                              : user.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {manager ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-900/50 p-3 text-sm text-slate-200">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage
+                            src={
+                              manager.profileImageUrl ||
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                `${manager.firstName ?? ''} ${manager.lastName ?? ''}`.trim() || manager.email
+                              )}&background=312e81&color=fff`
+                            }
+                            alt={manager.email}
+                          />
+                          <AvatarFallback className="bg-indigo-600 text-white">
+                            {(manager.firstName || manager.lastName
+                              ? `${manager.firstName ?? ''}${manager.lastName ?? ''}`
+                              : manager.email)
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-white">
+                            {manager.firstName || manager.lastName
+                              ? `${manager.firstName ?? ''} ${manager.lastName ?? ''}`.trim()
+                              : manager.email}
+                          </p>
+                          <p className="text-xs text-slate-400">Responsável principal</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="rounded-lg border border-dashed border-slate-800/70 px-4 py-3 text-xs text-slate-400">
+                        Defina um responsável para centralizar as atualizações e aprovações.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Status</Label>
+                      <Select
+                        value={formState.status}
+                        onValueChange={(value) => setFormState(prev => ({ ...prev, status: value }))}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-900/60 text-slate-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Ativo</SelectItem>
+                          <SelectItem value="on_hold">Em pausa</SelectItem>
+                          <SelectItem value="completed">Concluído</SelectItem>
+                          <SelectItem value="cancelled">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Prioridade</Label>
+                      <Select
+                        value={formState.priority}
+                        onValueChange={(value) => setFormState(prev => ({ ...prev, priority: value }))}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-900/60 text-slate-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="baixa">Baixa</SelectItem>
+                          <SelectItem value="media">Média</SelectItem>
+                          <SelectItem value="alta">Alta</SelectItem>
+                          <SelectItem value="urgente">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Tipo</Label>
+                      <Select
+                        value={formState.type}
+                        onValueChange={(value) => setFormState(prev => ({ ...prev, type: value }))}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-900/60 text-slate-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="stand_imobiliario">Stand Imobiliário</SelectItem>
+                          <SelectItem value="projeto_arquitetura">Projeto de Arquitetura</SelectItem>
+                          <SelectItem value="projeto_estrutural">Projeto Estrutural</SelectItem>
+                          <SelectItem value="reforma">Reforma</SelectItem>
+                          <SelectItem value="manutencao">Manutenção</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Orçamento previsto (R$)</Label>
+                      <Input
+                        value={formState.budget}
+                        onChange={(event) => setFormState(prev => ({ ...prev, budget: event.target.value }))}
+                        type="number"
+                        step="0.01"
+                        className="border-slate-800 bg-slate-900/60 text-slate-100"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="grid gap-4 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase text-slate-400">Datas do projeto</Label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label className="text-[11px] uppercase tracking-wide text-slate-500">Início</Label>
+                        <Input
+                          type="date"
+                          value={formState.startDate}
+                          onChange={(event) => setFormState(prev => ({ ...prev, startDate: event.target.value }))}
+                          className="border-slate-800 bg-slate-900/60 text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] uppercase tracking-wide text-slate-500">Previsão de entrega</Label>
+                        <Input
+                          type="date"
+                          value={formState.endDate}
+                          onChange={(event) => setFormState(prev => ({ ...prev, endDate: event.target.value }))}
+                          className="border-slate-800 bg-slate-900/60 text-slate-100"
+                        />
+                      </div>
+                    </div>
+                    {formState.startDate && formState.endDate && (
+                      <p className="flex items-center text-xs text-slate-400">
+                        <Calendar className="mr-2 h-4 w-4 text-indigo-300" />
+                        {`Período: ${format(new Date(formState.startDate), 'dd/MM/yyyy')} até ${format(new Date(formState.endDate), 'dd/MM/yyyy')}`}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase text-slate-400">Contato do cliente</Label>
+                    <Input
+                      value={formState.clientName}
+                      onChange={(event) => setFormState(prev => ({ ...prev, clientName: event.target.value }))}
+                      placeholder="Nome do cliente"
+                      className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                    />
+                    <Input
+                      type="email"
+                      value={formState.clientEmail}
+                      onChange={(event) => setFormState(prev => ({ ...prev, clientEmail: event.target.value }))}
+                      placeholder="cliente@empresa.com"
+                      className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                    />
+                    <Input
+                      value={formState.clientPhone}
+                      onChange={(event) => setFormState(prev => ({ ...prev, clientPhone: event.target.value }))}
+                      placeholder="(11) 99999-0000"
+                      className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                    />
+                  </div>
+                </section>
+
+                <section className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5">
+                  <h3 className="text-sm font-semibold text-white">Detalhes adicionais</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Empresa / Cliente</Label>
+                      <Input
+                        value={formState.companyName}
+                        onChange={(event) => setFormState(prev => ({ ...prev, companyName: event.target.value }))}
+                        placeholder="Razão social ou responsável"
+                        className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase text-slate-400">Localização</Label>
+                      <Input
+                        value={formState.location}
+                        onChange={(event) => setFormState(prev => ({ ...prev, location: event.target.value }))}
+                        placeholder="Cidade, estado ou endereço principal"
+                        className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Tarefas vinculadas</h3>
+                    <Badge variant="secondary" className="rounded-full bg-indigo-600/20 text-indigo-200">
+                      {completedTasks}/{totalTasks} concluídas
+                    </Badge>
+                  </div>
+                  {totalTasks === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-800/70 px-4 py-6 text-center text-xs text-slate-400">
+                      Nenhuma tarefa associada a este projeto ainda.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {project.tasks?.map(task => (
+                        <div key={task.id} className="flex items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/50 p-3 text-sm text-slate-200">
+                          <div>
+                            <p className="font-medium text-white">{task.title}</p>
+                            <p className="text-xs text-slate-400">{task.description || 'Sem descrição'}</p>
+                          </div>
+                          <Badge variant="outline" className="rounded-full border-slate-700 text-xs text-slate-300">
+                            {task.status === 'concluida' ? 'Concluída' : task.status === 'em_andamento' ? 'Em andamento' : task.status === 'aberta' ? 'A fazer' : 'Cancelada'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5">
+                  <h3 className="text-sm font-semibold text-white">Comentários rápidos</h3>
+                  <Textarea
+                    value={noteText}
+                    onChange={(event) => setNoteText(event.target.value)}
+                    rows={3}
+                    placeholder="Anote alinhamentos ou próximos passos discutidos com o cliente."
+                    className="border-slate-800 bg-slate-900/60 text-slate-100 placeholder:text-slate-500"
+                  />
+                  <div className="flex items-center justify-between">
+                    <Button type="button" onClick={handleAddNote} size="sm" className="bg-indigo-600 text-white hover:bg-indigo-500">
+                      Registrar comentário
+                    </Button>
+                    <ProjectModal
+                      project={project}
+                      trigger={
+                        <Button variant="ghost" size="sm" className="text-slate-300 hover:bg-slate-800">
+                          <Edit className="mr-2 h-4 w-4" /> Modo avançado
+                        </Button>
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    {localNotes.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-slate-800/70 px-4 py-6 text-center text-xs text-slate-400">
+                        Nenhum comentário registrado neste painel ainda.
+                      </p>
+                    ) : (
+                      localNotes.map(note => (
+                        <div key={note.id} className="rounded-xl border border-slate-800/60 bg-slate-900/70 p-3 text-sm text-slate-200">
+                          <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                            <span>Você</span>
+                            <span>{format(note.createdAt, 'dd/MM/yyyy HH:mm')}</span>
+                          </div>
+                          <p>{note.text}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <div className="border-t border-slate-800 bg-slate-950/90 px-6 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-slate-500">
+                    As alterações são sincronizadas com o painel de projetos e notificam os responsáveis.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-slate-300 hover:bg-slate-800"
+                      onClick={() => onOpenChange(false)}
+                      disabled={updateProjectMutation.isPending}
+                    >
+                      Fechar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={updateProjectMutation.isPending}
+                      className="bg-indigo-600 text-white hover:bg-indigo-500"
+                    >
+                      {updateProjectMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+              </div>
+            </form>
+          </div>
+        </SheetContent>
+      ) : null}
+    </Sheet>
   );
 }
