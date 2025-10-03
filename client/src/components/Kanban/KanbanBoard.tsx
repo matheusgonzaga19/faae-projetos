@@ -10,10 +10,11 @@ import TaskList from './TaskList';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
 import TaskModal from './TaskModal';
+import TaskDetailsDrawer from './TaskDetailsDrawer';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import type { TaskTag } from '@/types';
+import type { TaskTag, User } from '@/types';
 import { DEFAULT_TAG_COLOR, getTagTextColor } from '@/utils/tags';
 
 type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
@@ -66,6 +67,8 @@ export default function KanbanBoard() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -141,7 +144,7 @@ export default function KanbanBoard() {
   });
 
   // Fetch users for assignee filtering
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
     queryFn: () => firebaseService.getAllUsers(),
     refetchInterval: 60000,
@@ -290,15 +293,20 @@ export default function KanbanBoard() {
   };
 
   const handleEdit = (task: Task) => {
-    setSelectedTask(task);
-    setModalMode('edit');
-    setIsTaskModalOpen(true);
+    setDrawerTask(task);
+    setIsTaskDrawerOpen(true);
   };
 
   const handleView = (task: Task) => {
+    setDrawerTask(task);
+    setIsTaskDrawerOpen(true);
+  };
+
+  const handleOpenAdvancedEdit = (task: Task) => {
     setSelectedTask(task);
-    setModalMode('view');
+    setModalMode('edit');
     setIsTaskModalOpen(true);
+    setIsTaskDrawerOpen(false);
   };
 
   const handleDelete = (task: Task) => {
@@ -532,6 +540,8 @@ export default function KanbanBoard() {
             onClick={() => {
               setModalMode('create');
               setSelectedTask(null);
+              setDrawerTask(null);
+              setIsTaskDrawerOpen(false);
               setIsTaskModalOpen(true);
             }}
           >
@@ -719,6 +729,21 @@ export default function KanbanBoard() {
         projects={projects}
         task={selectedTask || undefined}
         mode={modalMode}
+      />
+
+      <TaskDetailsDrawer
+        open={isTaskDrawerOpen}
+        onOpenChange={(open) => {
+          setIsTaskDrawerOpen(open);
+          if (!open) {
+            setDrawerTask(null);
+          }
+        }}
+        task={drawerTask}
+        projects={projects}
+        users={users}
+        onDelete={(task) => handleDelete(task)}
+        onOpenAdvancedEdit={(task) => handleOpenAdvancedEdit(task)}
       />
 
       <ConfirmDialog
