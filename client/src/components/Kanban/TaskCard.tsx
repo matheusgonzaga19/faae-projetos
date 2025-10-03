@@ -3,13 +3,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
-import TaskModal from "./TaskModal";
 import type { TaskWithDetails } from "@shared/schema";
 import { PRIORITY_BADGE_STYLES, PRIORITY_LABELS } from "@/lib/constants";
 
 interface TaskCardProps {
   task: TaskWithDetails;
-  onDragStart: (e: React.DragEvent, taskId: number) => void;
+  onDragStart: (e: React.DragEvent, taskId: string) => void;
 }
 
 export default function TaskCard({ task, onDragStart }: TaskCardProps) {
@@ -53,13 +52,14 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
   const canEditTask = () => {
     if (!user) return false;
     if (user.role === 'admin') return true;
-    return task.assignedUserId === user.id || task.createdUserId === user.id;
+    const createdById = (task as TaskWithDetails & { createdUserId?: string }).createdUserId;
+    return task.assignedUserId === user.id || createdById === user.id;
   };
 
   const cardContent = (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, task.id)}
+      onDragStart={(e) => onDragStart(e, task.id.toString())}
       className={`bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-600 cursor-move hover:shadow-md transition-shadow group ${isCanceled ? 'opacity-60' : ''}`}
     >
       {/* Priority and Drag Handle */}
@@ -105,14 +105,20 @@ export default function TaskCard({ task, onDragStart }: TaskCardProps) {
       )}
 
       {/* Files Indicator */}
-      {task.files && task.files.length > 0 && (
+      {(() => {
+        const files = (task as TaskWithDetails & { files?: Array<{ id: string }> }).files;
+        if (!files || files.length === 0) {
+          return null;
+        }
+        return (
         <div className="mb-3">
           <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
             <i className="fas fa-paperclip mr-1"></i>
-            {task.files.length} arquivo{task.files.length !== 1 ? 's' : ''}
+            {files.length} arquivo{files.length !== 1 ? 's' : ''}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Footer */}
       <div className="flex items-center justify-between">

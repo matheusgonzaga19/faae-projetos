@@ -1,17 +1,15 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, AlertCircle, Clock, CheckCircle, X, Filter, Users, Building } from "lucide-react";
 import type { TaskWithDetails, Project, User } from "@shared/schema";
 import TaskCardSimple from "./TaskCardSimple";
-import TaskModal from "./TaskModal";
+import TaskDetailsDrawer from "./TaskDetailsDrawer";
 import { Badge } from "@/components/ui/badge";
 
 type TaskStatus = "aberta" | "em_andamento" | "concluida" | "cancelada";
@@ -61,11 +59,11 @@ export default function KanbanBoardFixed() {
   
   // States
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<string>("all");
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [selectedTaskForModal, setSelectedTaskForModal] = useState<TaskWithDetails | null>(null);
+  const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
+  const [drawerTask, setDrawerTask] = useState<TaskWithDetails | null>(null);
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
 
   // Data queries
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<TaskWithDetails[]>({
@@ -187,13 +185,21 @@ export default function KanbanBoardFixed() {
   const canEditTask = (task: TaskWithDetails) => {
     if (!user) return false;
     if (user.role === 'admin') return true;
-    return task.assignedUserId === user.id || task.createdUserId === user.id;
+    const createdById = (task as TaskWithDetails & { createdUserId?: string }).createdUserId;
+    return task.assignedUserId === user.id || createdById === user.id;
   };
 
   // Open create task modal
-  const handleCreateTask = (status: TaskStatus) => {
-    setSelectedTaskForModal(null);
-    setIsTaskModalOpen(true);
+  const handleCreateTask = () => {
+    setDrawerTask(null);
+    setDrawerMode('create');
+    setIsTaskDrawerOpen(true);
+  };
+
+  const handleSelectTask = (task: TaskWithDetails) => {
+    setDrawerTask(task);
+    setDrawerMode('edit');
+    setIsTaskDrawerOpen(true);
   };
 
   if (tasksLoading || projectsLoading || usersLoading) {
@@ -255,8 +261,8 @@ export default function KanbanBoardFixed() {
             </SelectContent>
           </Select>
 
-          <Button 
-            onClick={() => handleCreateTask("aberta")}
+          <Button
+            onClick={handleCreateTask}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -333,8 +339,7 @@ export default function KanbanBoardFixed() {
                 <Button
                   variant="ghost"
                   className="w-full mb-4 h-10 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-600 dark:hover:border-gray-500 dark:hover:text-gray-300"
-                  onClick={() => handleCreateTask(column.id)}
-                  disabled={isCreatingTask}
+                  onClick={handleCreateTask}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Adicionar tarefa
@@ -347,6 +352,7 @@ export default function KanbanBoardFixed() {
                       key={task.id}
                       task={task}
                       onDragStart={handleDragStart}
+                      onSelectTask={handleSelectTask}
                     />
                   ))}
                 </div>
@@ -364,12 +370,19 @@ export default function KanbanBoardFixed() {
         })}
       </div>
 
-      {/* Task Creation Modal */}
-      <TaskModal
-        task={selectedTaskForModal}
-        open={isTaskModalOpen}
-        onOpenChange={setIsTaskModalOpen}
-        defaultStatus="aberta"
+      <TaskDetailsDrawer
+        open={isTaskDrawerOpen}
+        onOpenChange={(open) => {
+          setIsTaskDrawerOpen(open);
+          if (!open) {
+            setDrawerTask(null);
+          }
+        }}
+        task={drawerTask}
+        mode={drawerMode}
+        projects={projects}
+        users={users}
+        defaultProjectId={selectedProject === 'all' ? undefined : selectedProject}
       />
     </div>
   );
