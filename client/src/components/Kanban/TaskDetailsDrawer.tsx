@@ -422,12 +422,15 @@ export function TaskDetailsDrawer({
                 <section className="grid gap-4 rounded-2xl border border-slate-800/70 bg-slate-900/40 p-5 md:grid-cols-2">
                   <div>
                     <Label className="text-xs uppercase text-slate-400">Projeto</Label>
-                    <Select value={projectId} onValueChange={setProjectId}>
+                    <Select
+                      value={projectId === "" ? "none" : projectId}
+                      onValueChange={(value) => setProjectId(value === "none" ? "" : value)}
+                    >
                       <SelectTrigger className="mt-1 border-slate-800 bg-slate-900/60 text-slate-100">
                         <SelectValue placeholder="Selecione um projeto" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sem projeto</SelectItem>
+                        <SelectItem value="none">Sem projeto</SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}
