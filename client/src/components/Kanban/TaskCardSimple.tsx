@@ -1,21 +1,19 @@
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
-import TaskModal from "./TaskModal";
 import type { TaskWithDetails } from "@shared/schema";
 import { PRIORITY_BADGE_STYLES, PRIORITY_LABELS } from "@/lib/constants";
 
 interface TaskCardProps {
   task: TaskWithDetails;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
+  onSelectTask?: (task: TaskWithDetails) => void;
 }
 
-export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
+export default function TaskCardSimple({ task, onDragStart, onSelectTask }: TaskCardProps) {
   const { user } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const isCanceled = task.status === 'cancelada';
   
   const getUserDisplayName = () => {
@@ -55,23 +53,23 @@ export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
   const canEditTask = () => {
     if (!user) return false;
     if (user.role === 'admin') return true;
-    return task.assignedUserId === user.id || task.createdUserId === user.id;
+    const createdById = (task as TaskWithDetails & { createdUserId?: string }).createdUserId;
+    return task.assignedUserId === user.id || createdById === user.id;
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsModalOpen(true);
+    onSelectTask?.(task);
   };
 
   return (
-    <>
-      <div
-        draggable
-        onDragStart={(e) => onDragStart(e, task.id.toString())}
-        onClick={handleCardClick}
-        className={`bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-600 cursor-grab hover:cursor-grab hover:shadow-md transition-all duration-200 group ${isCanceled ? 'opacity-60' : ''}`}
-      >
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, task.id.toString())}
+      onClick={handleCardClick}
+      className={`bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-600 cursor-grab hover:cursor-grab hover:shadow-md transition-all duration-200 group ${isCanceled ? 'opacity-60' : ''}`}
+    >
         {/* Priority and Drag Handle */}
         <div className="flex items-center justify-between mb-2">
           <Badge
@@ -149,16 +147,6 @@ export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Complete Task Modal */}
-      <TaskModal
-        task={task}
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        defaultStatus={task.status}
-        defaultProjectId={task.projectId || undefined}
-      />
-    </>
+    </div>
   );
 }

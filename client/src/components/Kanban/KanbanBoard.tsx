@@ -4,17 +4,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, User, AlertTriangle, RefreshCw, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Calendar, User as UserIcon, AlertTriangle, RefreshCw, Edit2, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import TaskList from './TaskList';
 import { useToast } from '@/hooks/use-toast';
 import { firebaseService } from '@/services/firebaseService';
-import TaskModal from './TaskModal';
 import TaskDetailsDrawer from './TaskDetailsDrawer';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import type { TaskTag, User } from '@/types';
+import type { Task as TaskModel, TaskTag, User as AppUser, Project as ProjectModel } from '@/types';
 import { DEFAULT_TAG_COLOR, getTagTextColor } from '@/utils/tags';
 import {
   STATUS_BADGE_STYLES,
@@ -25,28 +24,9 @@ import {
 
 type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
 type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica';
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  projectId: string;
-  assigneeId?: string;
-  assignedUserIds?: string[];
-  startDate?: Date;
-  tags?: TaskTag[];
-  dueDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  status: string;
-}
+type Task = TaskModel;
+type Project = ProjectModel;
+type User = AppUser;
 
 const COLUMNS = [
   { id: 'aberta', title: STATUS_LABELS.aberta },
@@ -66,11 +46,9 @@ const COLUMN_HEADER_CLASSES: Record<TaskStatus, string> = {
 };
 
 export default function KanbanBoard() {
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
+  const [taskDrawerMode, setTaskDrawerMode] = useState<'create' | 'edit'>('create');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -113,7 +91,7 @@ export default function KanbanBoard() {
 
     if (selectedTags.length > 0) {
       const taskTagIds = new Set(task.tags.map(resolveTagIdentifier));
-      const hasAllSelectedTags = selectedTags.every(tag => taskTagIds.has(tag.id));
+      const hasAllSelectedTags = selectedTags.every((tag: TaskTag) => taskTagIds.has(tag.id));
 
       if (!hasAllSelectedTags) {
         return false;
@@ -121,7 +99,7 @@ export default function KanbanBoard() {
     }
 
     if (normalizedTagSearch) {
-      return task.tags.some(tag =>
+      return task.tags.some((tag: TaskTag) =>
         tag.name.toLowerCase().includes(normalizedTagSearch)
       );
     }
@@ -156,7 +134,7 @@ export default function KanbanBoard() {
     const map = new Map<string, TaskTag>();
 
     tasks.forEach(task => {
-      task.tags?.forEach(tag => {
+      task.tags?.forEach((tag: TaskTag) => {
         if (!tag) {
           return;
         }
@@ -189,8 +167,8 @@ export default function KanbanBoard() {
       return [] as TaskTag[];
     }
 
-    return availableTags.filter(tag => {
-      if (selectedTags.some(selected => selected.id === tag.id)) {
+    return availableTags.filter((tag: TaskTag) => {
+      if (selectedTags.some((selected: TaskTag) => selected.id === tag.id)) {
         return false;
       }
 
@@ -204,7 +182,7 @@ export default function KanbanBoard() {
 
   const handleTagSelect = (tag: TaskTag) => {
     setSelectedTags(prev => {
-      if (prev.some(selected => selected.id === tag.id)) {
+      if (prev.some((selected: TaskTag) => selected.id === tag.id)) {
         return prev;
       }
 
@@ -219,7 +197,7 @@ export default function KanbanBoard() {
   };
 
   const handleTagRemove = (tagId: string) => {
-    setSelectedTags(prev => prev.filter(tag => tag.id !== tagId));
+    setSelectedTags(prev => prev.filter((tag: TaskTag) => tag.id !== tagId));
   };
 
   // Update task status mutation
@@ -296,19 +274,20 @@ export default function KanbanBoard() {
 
   const handleEdit = (task: Task) => {
     setDrawerTask(task);
+    setTaskDrawerMode('edit');
     setIsTaskDrawerOpen(true);
   };
 
   const handleView = (task: Task) => {
     setDrawerTask(task);
+    setTaskDrawerMode('edit');
     setIsTaskDrawerOpen(true);
   };
 
-  const handleOpenAdvancedEdit = (task: Task) => {
-    setSelectedTask(task);
-    setModalMode('edit');
-    setIsTaskModalOpen(true);
-    setIsTaskDrawerOpen(false);
+  const handleCreateTaskFromBoard = () => {
+    setDrawerTask(null);
+    setTaskDrawerMode('create');
+    setIsTaskDrawerOpen(true);
   };
 
   const handleDelete = (task: Task) => {
@@ -538,15 +517,7 @@ export default function KanbanBoard() {
             {viewMode === 'board' ? 'Ver Lista' : 'Ver Kanban'}
           </Button>
 
-          <Button
-            onClick={() => {
-              setModalMode('create');
-              setSelectedTask(null);
-              setDrawerTask(null);
-              setIsTaskDrawerOpen(false);
-              setIsTaskModalOpen(true);
-            }}
-          >
+          <Button onClick={handleCreateTaskFromBoard}>
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Tarefa
           </Button>
@@ -663,7 +634,7 @@ export default function KanbanBoard() {
 
                                   {task.tags && task.tags.length > 0 && (
                                     <div className="mb-2 flex flex-wrap gap-1">
-                                      {task.tags.map((tag) => {
+                                      {task.tags.map((tag: TaskTag) => {
                                         const backgroundColor = tag.color || DEFAULT_TAG_COLOR;
                                         const textColor = getTagTextColor(backgroundColor);
                                         return (
@@ -697,7 +668,7 @@ export default function KanbanBoard() {
 
                                     {(task.assigneeId || task.assignedUserIds?.length) && (
                                       <div className="flex items-center">
-                                        <User className="h-3 w-3 mr-1" />
+                                        <UserIcon className="h-3 w-3 mr-1" />
                                         Atribuída
                                       </div>
                                     )}
@@ -733,19 +704,6 @@ export default function KanbanBoard() {
         <TaskList tasks={getFilteredTasks()} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
-      {/* Task Creation Modal */}
-      <TaskModal
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTask(null);
-          setModalMode('create');
-        }}
-        projects={projects}
-        task={selectedTask || undefined}
-        mode={modalMode}
-      />
-
       <TaskDetailsDrawer
         open={isTaskDrawerOpen}
         onOpenChange={(open) => {
@@ -755,10 +713,11 @@ export default function KanbanBoard() {
           }
         }}
         task={drawerTask}
+        mode={taskDrawerMode}
         projects={projects}
         users={users}
         onDelete={(task) => handleDelete(task)}
-        onOpenAdvancedEdit={(task) => handleOpenAdvancedEdit(task)}
+        defaultProjectId={selectedProjectId || undefined}
       />
 
       <ConfirmDialog
