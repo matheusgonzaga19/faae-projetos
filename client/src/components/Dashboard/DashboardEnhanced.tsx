@@ -31,35 +31,14 @@ import {
 import { firebaseService } from '@/services/firebaseService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-// Color schemes for charts
-const STATUS_COLORS = {
-  aberta: '#f59e0b',
-  em_andamento: '#3b82f6',
-  concluida: '#10b981',
-  cancelada: '#ef4444'
-};
-
-const PRIORITY_COLORS = {
-  baixa: '#6b7280',
-  media: '#f59e0b',
-  alta: '#f97316',
-  critica: '#dc2626'
-};
-
-const STATUS_LABELS = {
-  aberta: 'Aberta',
-  em_andamento: 'Em Andamento',
-  concluida: 'Concluída',
-  cancelada: 'Cancelada'
-};
-
-const PRIORITY_LABELS = {
-  baixa: 'Baixa',
-  media: 'Média',
-  alta: 'Alta',
-  critica: 'Crítica'
-};
+import {
+  STATUS_LABELS,
+  PRIORITY_LABELS,
+  STATUS_COLOR_VALUES,
+  PRIORITY_COLOR_VALUES,
+  THEME_COLORS,
+  CHART_COLOR_SEQUENCE,
+} from '@/lib/constants';
 
 export default function DashboardEnhanced() {
   const { data: dashboardData, isLoading, error, refetch } = useQuery({
@@ -113,13 +92,13 @@ export default function DashboardEnhanced() {
   const statusChartData = Object.entries(tasksByStatus).map(([status, count]) => ({
     name: STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status,
     value: count,
-    color: STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#6b7280'
+    color: STATUS_COLOR_VALUES[status as keyof typeof STATUS_COLOR_VALUES] || THEME_COLORS.neutral,
   }));
 
   const priorityChartData = Object.entries(tasksByPriority).map(([priority, count]) => ({
     name: PRIORITY_LABELS[priority as keyof typeof PRIORITY_LABELS] || priority,
     value: count,
-    fill: PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || '#6b7280'
+    fill: PRIORITY_COLOR_VALUES[priority as keyof typeof PRIORITY_COLOR_VALUES] || THEME_COLORS.neutral,
   }));
 
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -221,15 +200,18 @@ export default function DashboardEnhanced() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, value, percent }) => 
+                  label={({ name, value, percent }) =>
                     `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
                   }
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill={THEME_COLORS.primary}
                   dataKey="value"
                 >
                   {statusChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell
+                      key={`status-${index}`}
+                      fill={entry.color || CHART_COLOR_SEQUENCE[index % CHART_COLOR_SEQUENCE.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -253,7 +235,14 @@ export default function DashboardEnhanced() {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
+                <Bar dataKey="value" fill={THEME_COLORS.accent}>
+                  {priorityChartData.map((entry, index) => (
+                    <Cell
+                      key={`priority-${index}`}
+                      fill={entry.fill || CHART_COLOR_SEQUENCE[(index + 1) % CHART_COLOR_SEQUENCE.length]}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -278,12 +267,13 @@ export default function DashboardEnhanced() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="tasks" 
-                  stroke="#6366f1" 
-                  strokeWidth={2}
+                <Line
+                  type="monotone"
+                  dataKey="tasks"
+                  stroke={THEME_COLORS.primary}
+                  strokeWidth={3}
                   name="Tarefas Criadas"
+                  dot={{ r: 5, strokeWidth: 2, stroke: THEME_COLORS.primary, fill: '#ffffff' }}
                 />
               </LineChart>
             </ResponsiveContainer>

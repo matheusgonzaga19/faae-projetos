@@ -16,6 +16,12 @@ import { ptBR } from 'date-fns/locale';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { TaskTag, User } from '@/types';
 import { DEFAULT_TAG_COLOR, getTagTextColor } from '@/utils/tags';
+import {
+  STATUS_BADGE_STYLES,
+  STATUS_LABELS,
+  PRIORITY_BADGE_STYLES,
+  PRIORITY_LABELS,
+} from '@/lib/constants';
 
 type TaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
 type TaskPriority = 'baixa' | 'media' | 'alta' | 'critica';
@@ -43,24 +49,20 @@ interface Project {
 }
 
 const COLUMNS = [
-  { id: 'aberta', title: 'Backlog', color: 'bg-yellow-100 border-yellow-300' },
-  { id: 'em_andamento', title: 'Em Andamento', color: 'bg-blue-100 border-blue-300' },
-  { id: 'concluida', title: 'Concluída', color: 'bg-green-100 border-green-300' },
-  { id: 'cancelada', title: 'Cancelada', color: 'bg-red-100 border-red-300' },
+  { id: 'aberta', title: STATUS_LABELS.aberta },
+  { id: 'em_andamento', title: STATUS_LABELS.em_andamento },
+  { id: 'concluida', title: STATUS_LABELS.concluida },
+  { id: 'cancelada', title: STATUS_LABELS.cancelada },
 ] as const;
 
-const PRIORITY_COLORS = {
-  baixa: 'bg-gray-100 text-gray-800 border-gray-300',
-  media: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  alta: 'bg-orange-100 text-orange-800 border-orange-300',
-  critica: 'bg-red-100 text-red-800 border-red-300',
-};
-
-const PRIORITY_LABELS = {
-  baixa: 'Baixa',
-  media: 'Média',
-  alta: 'Alta',
-  critica: 'Crítica',
+const COLUMN_HEADER_CLASSES: Record<TaskStatus, string> = {
+  aberta: 'bg-blue-50/80 text-blue-900 border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-800/40',
+  em_andamento:
+    'bg-indigo-50/80 text-indigo-900 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-100 dark:border-indigo-800/40',
+  concluida:
+    'bg-emerald-50/80 text-emerald-900 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-100 dark:border-emerald-800/40',
+  cancelada:
+    'bg-red-50/80 text-red-900 border-red-200 dark:bg-red-900/20 dark:text-red-100 dark:border-red-800/40',
 };
 
 export default function KanbanBoard() {
@@ -558,10 +560,17 @@ export default function KanbanBoard() {
 
               return (
                 <div key={column.id} className="flex flex-col">
-                  <div className={`${column.color} rounded-t-lg p-4 border-b-2`}>
-                    <h3 className="font-semibold text-gray-800 flex items-center justify-between">
+                  <div
+                    className={`${COLUMN_HEADER_CLASSES[column.id as TaskStatus]} rounded-t-lg p-4 border-b transition-colors`}
+                  >
+                    <h3 className="font-semibold flex items-center justify-between">
                       {column.title}
-                      <Badge variant="secondary" className="ml-2">
+                      <Badge
+                        variant="secondary"
+                        className={`${
+                          STATUS_BADGE_STYLES[column.id as TaskStatus] ?? 'bg-blue-100 text-blue-800'
+                        } ml-2`}
+                      >
                         {columnTasks.length}
                       </Badge>
                     </h3>
@@ -572,8 +581,10 @@ export default function KanbanBoard() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`flex-1 p-4 space-y-3 overflow-y-auto bg-gray-50 rounded-b-lg border-l border-r border-b ${
-                          snapshot.isDraggingOver ? 'bg-blue-50' : ''
+                        className={`flex-1 p-4 space-y-3 overflow-y-auto rounded-b-lg border border-t-0 transition-colors ${
+                          snapshot.isDraggingOver
+                            ? 'bg-blue-50/80 border-blue-200 dark:bg-blue-900/25 dark:border-blue-800/50'
+                            : 'bg-white/80 border-gray-100 dark:bg-slate-900/30 dark:border-slate-800'
                         }`}
                         style={{ minHeight: '200px' }}
                       >
@@ -586,7 +597,7 @@ export default function KanbanBoard() {
                             {...provided.dragHandleProps}
                             className={`cursor-move transition-all duration-200 ${
                               snapshot.isDragging
-                                ? 'rotate-2 shadow-lg ring-2 ring-blue-400'
+                                ? 'rotate-2 shadow-lg ring-2 ring-blue-300 dark:ring-blue-700/60'
                                 : 'hover:shadow-md'
                             } ${task.status === 'cancelada' ? 'opacity-60' : ''}`}
                             onClick={() => {
@@ -609,7 +620,11 @@ export default function KanbanBoard() {
                                     <div className="flex items-center gap-1 ml-2">
                                       <Badge
                                         variant="outline"
-                                        className={`text-xs ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}`}
+                                        className={`text-xs ${
+                                          PRIORITY_BADGE_STYLES[
+                                            task.priority as keyof typeof PRIORITY_BADGE_STYLES
+                                          ] ?? 'bg-gray-100 text-gray-800 border-gray-200'
+                                        }`}
                                       >
                                         {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
                                       </Badge>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { PRIORITY_COLORS, STATUS_COLORS, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/constants";
+import { PRIORITY_BADGE_STYLES, STATUS_BADGE_STYLES, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/constants";
 import type { ChatMessage as ChatMessageType, TaskWithDetails } from "@/types";
 
 interface ChatMessageProps {
@@ -41,13 +41,13 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           <div className="flex items-center space-x-2 ml-3">
             <Badge
               variant="secondary"
-              className={PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]}
+              className={PRIORITY_BADGE_STYLES[task.priority as keyof typeof PRIORITY_BADGE_STYLES]}
             >
               {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
             </Badge>
             <Badge
               variant="secondary"
-              className={STATUS_COLORS[task.status as keyof typeof STATUS_COLORS]}
+              className={STATUS_BADGE_STYLES[task.status as keyof typeof STATUS_BADGE_STYLES]}
             >
               {STATUS_LABELS[task.status as keyof typeof STATUS_LABELS]}
             </Badge>

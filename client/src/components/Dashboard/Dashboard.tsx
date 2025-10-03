@@ -11,6 +11,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Download, Filter, TrendingUp, Users, CheckCircle, Clock, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import {
+  STATUS_LABELS,
+  PRIORITY_LABELS,
+  STATUS_BADGE_STYLES,
+  PRIORITY_BADGE_STYLES,
+  STATUS_COLOR_VALUES,
+  PRIORITY_COLOR_VALUES,
+  CHART_COLOR_SEQUENCE,
+  THEME_COLORS,
+} from "@/lib/constants";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import type { DashboardStats, UserStats } from "@/types";
@@ -18,7 +28,7 @@ import { PDFReportGenerator, type PDFReportData } from '@/utils/pdfGenerator';
 import type { ProjectWithTasks, TaskWithDetails, User } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const COLORS = CHART_COLOR_SEQUENCE;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -74,23 +84,11 @@ export default function Dashboard() {
     }
     
     if (selectedStatus !== 'all') {
-      const statusLabels = {
-        'aberta': 'Aberta',
-        'em_andamento': 'Em Andamento',
-        'concluida': 'Concluída',
-        'cancelada': 'Cancelada'
-      };
-      activeFilters.push(`Status: ${statusLabels[selectedStatus as keyof typeof statusLabels] || selectedStatus}`);
+      activeFilters.push(`Status: ${STATUS_LABELS[selectedStatus as keyof typeof STATUS_LABELS] || selectedStatus}`);
     }
-    
+
     if (selectedPriority !== 'all') {
-      const priorityLabels = {
-        'baixa': 'Baixa',
-        'media': 'Média',
-        'alta': 'Alta',
-        'critica': 'Crítica'
-      };
-      activeFilters.push(`Prioridade: ${priorityLabels[selectedPriority as keyof typeof priorityLabels] || selectedPriority}`);
+      activeFilters.push(`Prioridade: ${PRIORITY_LABELS[selectedPriority as keyof typeof PRIORITY_LABELS] || selectedPriority}`);
     }
     
     if (dateRange.from && dateRange.to) {
@@ -209,8 +207,9 @@ export default function Dashboard() {
     }, {});
     
     return Object.entries(statusCount).map(([status, count]) => ({
-      name: status,
-      value: count as number
+      name: STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status,
+      value: count as number,
+      color: STATUS_COLOR_VALUES[status as keyof typeof STATUS_COLOR_VALUES] || THEME_COLORS.neutral,
     }));
   };
 
@@ -221,8 +220,9 @@ export default function Dashboard() {
     }, {});
     
     return Object.entries(priorityCount).map(([priority, count]) => ({
-      name: priority,
-      value: count as number
+      name: PRIORITY_LABELS[priority as keyof typeof PRIORITY_LABELS] || priority,
+      value: count as number,
+      color: PRIORITY_COLOR_VALUES[priority as keyof typeof PRIORITY_COLOR_VALUES] || THEME_COLORS.neutral,
     }));
   };
 
@@ -252,6 +252,9 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const tasksByStatusData = getTasksByStatus();
+  const tasksByPriorityData = getTasksByPriority();
 
   return (
     <div className="p-2 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 lg:space-y-6 min-h-screen">
@@ -524,17 +527,20 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={getTasksByStatus()}
+                    data={tasksByStatusData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={window.innerWidth > 1024 ? 80 : window.innerWidth > 640 ? 70 : 50}
-                    fill="#8884d8"
+                    fill={THEME_COLORS.primary}
                     dataKey="value"
                   >
-                    {getTasksByStatus().map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {tasksByStatusData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color || COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -552,12 +558,19 @@ export default function Dashboard() {
           <CardContent className="pt-0">
             <div className="h-48 sm:h-64 lg:h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={getTasksByPriority()}>
+                <BarChart data={tasksByPriorityData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" fontSize={window.innerWidth > 640 ? 12 : 10} />
                   <YAxis fontSize={window.innerWidth > 640 ? 12 : 10} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#8884d8" />
+                  <Bar dataKey="value" fill={THEME_COLORS.accent}>
+                    {tasksByPriorityData.map((entry, index) => (
+                      <Cell
+                        key={`priority-${index}`}
+                        fill={entry.color || COLORS[(index + 1) % COLORS.length]}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -577,7 +590,13 @@ export default function Dashboard() {
                   <XAxis dataKey="name" fontSize={window.innerWidth > 640 ? 12 : 10} />
                   <YAxis fontSize={window.innerWidth > 640 ? 12 : 10} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="tasks" stroke="#8884d8" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="tasks"
+                    stroke={THEME_COLORS.primary}
+                    strokeWidth={3}
+                    dot={{ r: 4, strokeWidth: 2, stroke: THEME_COLORS.primary, fill: '#ffffff' }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -603,11 +622,28 @@ export default function Dashboard() {
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{task.description}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <Badge variant={task.status === 'concluida' ? 'default' : 'secondary'}>
-                    {task.status}
+                <div className="flex flex-col items-end gap-1">
+                  <Badge
+                    variant="secondary"
+                    className={
+                      STATUS_BADGE_STYLES[
+                        task.status as keyof typeof STATUS_BADGE_STYLES
+                      ] || 'bg-gray-100 text-gray-800'
+                    }
+                  >
+                    {STATUS_LABELS[task.status as keyof typeof STATUS_LABELS] || task.status}
                   </Badge>
-                  <p className="text-xs text-gray-500 mt-1">{task.priority}</p>
+                  <span
+                    className="text-xs font-medium"
+                    style={{
+                      color:
+                        PRIORITY_COLOR_VALUES[
+                          task.priority as keyof typeof PRIORITY_COLOR_VALUES
+                        ] || THEME_COLORS.neutral,
+                    }}
+                  >
+                    {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS] || task.priority}
+                  </span>
                 </div>
               </div>
             ))}

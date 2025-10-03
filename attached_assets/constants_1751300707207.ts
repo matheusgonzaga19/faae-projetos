@@ -1,9 +1,9 @@
 export const APP_NAME = "FAAE PROJETOS";
 
-export const PRIMARY_COLOR = 'bg-blue-600'; // Example: #2563EB
-export const ACCENT_COLOR = 'bg-yellow-500'; // Example: #EAB308
-export const SUCCESS_COLOR = 'bg-green-500'; // Example: #22C55E
-export const WARNING_COLOR = 'bg-orange-500'; // Example: #F97316
+export const PRIMARY_COLOR = 'bg-blue-600'; // Example: #4C6EF5
+export const ACCENT_COLOR = 'bg-yellow-500'; // Example: #F4D150
+export const SUCCESS_COLOR = 'bg-green-500'; // Example: #2FBF9F
+export const WARNING_COLOR = 'bg-orange-500'; // Example: #E2A32F
 export const DEFAULT_KANBAN_STAGE_COLOR = 'bg-gray-400';
 
 export enum UserRole {

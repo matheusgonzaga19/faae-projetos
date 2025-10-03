@@ -1,6 +1,6 @@
 import type { TaskTag } from "@/types";
 
-export const DEFAULT_TAG_COLOR = "#2563eb";
+export const DEFAULT_TAG_COLOR = "#4c6ef5";
 
 const HEX_COLOR_REGEX = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 
@@ -136,6 +136,6 @@ export const getTagTextColor = (color?: string): string => {
 
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
-  return luminance > 186 ? "#111827" : "#ffffff";
+  return luminance > 186 ? "#101223" : "#ffffff";
 };
 
