@@ -6,25 +6,12 @@ import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import TaskModal from "./TaskModal";
 import type { TaskWithDetails } from "@shared/schema";
+import { PRIORITY_BADGE_STYLES, PRIORITY_LABELS } from "@/lib/constants";
 
 interface TaskCardProps {
   task: TaskWithDetails;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
 }
-
-const PRIORITY_COLORS = {
-  baixa: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
-  media: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-300",
-  alta: "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-300",
-  critica: "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-300",
-};
-
-const PRIORITY_LABELS = {
-  baixa: "Baixa",
-  media: "Média",
-  alta: "Alta",
-  critica: "Crítica",
-};
 
 export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
   const { user } = useAuth();
@@ -89,7 +76,10 @@ export default function TaskCardSimple({ task, onDragStart }: TaskCardProps) {
         <div className="flex items-center justify-between mb-2">
           <Badge
             variant="secondary"
-            className={`${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS]} text-xs px-1.5 py-0.5`}
+            className={`${
+              PRIORITY_BADGE_STYLES[task.priority as keyof typeof PRIORITY_BADGE_STYLES] ??
+              'bg-gray-100 text-gray-800'
+            } text-xs px-1.5 py-0.5`}
           >
             {PRIORITY_LABELS[task.priority as keyof typeof PRIORITY_LABELS]}
           </Badge>
