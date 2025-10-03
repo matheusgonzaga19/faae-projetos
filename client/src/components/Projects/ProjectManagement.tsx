@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +24,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +67,7 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { ProjectWithTasks, User } from "@shared/schema";
@@ -70,22 +82,100 @@ function ProjectModal({ project, trigger }: ProjectModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: project?.name || "",
-    description: project?.description || "",
-    status: project?.status || "active",
-    type: project?.type || "stand_imobiliario",
-    priority: project?.priority || "media",
-    startDate: project?.startDate ? format(new Date(project.startDate), 'yyyy-MM-dd') : "",
-    endDate: project?.endDate ? format(new Date(project.endDate), 'yyyy-MM-dd') : "",
-    budget: project?.budget?.toString() || "",
-    clientName: project?.clientName || "",
-    clientEmail: project?.clientEmail || "",
+  const projectTypeValues = [
+    "stand_imobiliario",
+    "projeto_arquitetura",
+    "projeto_estrutural",
+    "reforma",
+    "manutencao",
+    "projeto_arquitetonico",
+  ] as const;
+  const projectPriorityValues = ["baixa", "media", "alta", "urgente"] as const;
+
+  const projectSchema = z.object({
+    name: z.string().min(1, "Informe o nome do projeto"),
+    description: z.string().optional(),
+    type: z.enum(projectTypeValues, {
+      required_error: "Selecione um tipo",
+    }),
+    priority: z.enum(projectPriorityValues, {
+      required_error: "Selecione a prioridade",
+    }),
+    clientName: z.string().optional(),
+    clientEmail: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        (value) => !value || !value.length || /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value),
+        "Informe um email válido"
+      ),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    budget: z
+      .string()
+      .optional()
+      .refine(
+        (value) => {
+          if (!value) return true;
+          const numeric = Number(value.toString().replace(',', '.'));
+          return !Number.isNaN(numeric);
+        },
+        "Informe um valor numérico válido"
+      ),
   });
+
+  type ProjectFormValues = z.infer<typeof projectSchema>;
+  type ProjectType = ProjectFormValues["type"];
+  type ProjectPriority = ProjectFormValues["priority"];
+
+  const normalizeDateValue = (dateValue?: string | null) => {
+    if (!dateValue) {
+      return "";
+    }
+
+    try {
+      return format(new Date(dateValue), "yyyy-MM-dd");
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const getDefaultValues = useCallback((): ProjectFormValues => ({
+    name: project?.name ?? "",
+    description: project?.description ?? "",
+    type: ((project?.type as ProjectType) ?? "stand_imobiliario") as ProjectType,
+    priority: ((project?.priority as ProjectPriority) ?? "media") as ProjectPriority,
+    clientName: project?.clientName ?? "",
+    clientEmail: project?.clientEmail ?? "",
+    startDate: normalizeDateValue(project?.startDate as string | undefined),
+    endDate: normalizeDateValue(project?.endDate as string | undefined),
+    budget:
+      project?.budget !== undefined && project?.budget !== null
+        ? String(project.budget)
+        : "",
+  }), [project]);
+
+  const form = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectSchema),
+    defaultValues: getDefaultValues(),
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(getDefaultValues());
+    }
+  }, [form, getDefaultValues, isOpen]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('POST', '/api/projects', data);
+      return await apiRequest('POST', '/api/projects', {
+        ...data,
+        managerUserId: user?.id,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        budget: data.budget ? Number(data.budget.toString().replace(',', '.')) : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
@@ -95,177 +185,256 @@ function ProjectModal({ project, trigger }: ProjectModalProps) {
       });
       setIsOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao criar projeto",
-        description: error.message,
+        description: error?.message ?? "Não foi possível criar o projeto.",
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name.trim()) {
+  const updateProjectMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!project) return;
+      return await apiRequest('PUT', `/api/projects/${project.id}`, {
+        ...data,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        budget: data.budget ? Number(data.budget.toString().replace(',', '.')) : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       toast({
-        title: "Erro de validação",
-        description: "O nome do projeto é obrigatório.",
+        title: "Projeto atualizado",
+        description: "As informações foram salvas com sucesso.",
+      });
+      setIsOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao atualizar projeto",
+        description: error?.message ?? "Não foi possível salvar as alterações.",
         variant: "destructive",
       });
-      return;
-    }
+    },
+  });
 
-    const projectData = {
-      ...formData,
-      budget: formData.budget ? parseFloat(formData.budget) : null,
-      startDate: formData.startDate || null,
-      endDate: formData.endDate || null,
+  const isSubmitting = createProjectMutation.isPending || updateProjectMutation.isPending;
+  const isEditing = Boolean(project);
+  const projectTypeOptions: Array<{ value: ProjectType; label: string }> = [
+    { value: "stand_imobiliario", label: "Stand Imobiliário" },
+    { value: "projeto_arquitetura", label: "Projeto de Arquitetura" },
+    { value: "projeto_estrutural", label: "Projeto Estrutural" },
+    { value: "reforma", label: "Reforma" },
+    { value: "manutencao", label: "Manutenção" },
+  ];
+
+  const extendedTypeOptions =
+    project?.type === "projeto_arquitetonico"
+      ? [...projectTypeOptions, { value: "projeto_arquitetonico" as ProjectType, label: "Projeto Arquitetônico" }]
+      : projectTypeOptions;
+
+  const onSubmit = (values: ProjectFormValues) => {
+    const payload = {
+      ...values,
       managerUserId: user?.id,
     };
 
-    createProjectMutation.mutate(projectData);
+    if (isEditing) {
+      updateProjectMutation.mutate(payload);
+    } else {
+      createProjectMutation.mutate(payload);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      form.reset(getDefaultValues());
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      {trigger && (
-        <DialogTrigger asChild>
-          {trigger}
-        </DialogTrigger>
-      )}
-      <DialogContent className="max-w-2xl">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {project ? 'Editar Projeto' : 'Novo Projeto'}
-          </DialogTitle>
+          <DialogTitle>{isEditing ? 'Editar Projeto' : 'Novo Projeto'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label htmlFor="name">Nome do Projeto *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Stand Morumbi Plaza"
-                required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do Projeto *</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Ex: Stand Morumbi Plaza" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} rows={3} placeholder="Descreva o projeto" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Projeto</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {extendedTypeOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prioridade</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a prioridade" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="baixa">Baixa</SelectItem>
+                        <SelectItem value="media">Média</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="urgente">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div className="col-span-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descreva o projeto"
-                rows={3}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="clientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Cliente</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Nome do cliente" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="clientEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email do Cliente</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" placeholder="cliente@exemplo.com" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div>
-              <Label htmlFor="type">Tipo de Projeto</Label>
-              <Select value={formData.type} onValueChange={(value: "stand_imobiliario" | "projeto_arquitetonico" | "projeto_estrutural" | "reforma" | "manutencao") => setFormData({ ...formData, type: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="stand_imobiliario">Stand Imobiliário</SelectItem>
-                  <SelectItem value="projeto_arquitetura">Projeto de Arquitetura</SelectItem>
-                  <SelectItem value="projeto_estrutural">Projeto Estrutural</SelectItem>
-                  <SelectItem value="reforma">Reforma</SelectItem>
-                  <SelectItem value="manutencao">Manutenção</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Início</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div>
-              <Label htmlFor="priority">Prioridade</Label>
-              <Select value={formData.priority} onValueChange={(value: "baixa" | "media" | "alta" | "urgente") => setFormData({ ...formData, priority: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="urgente">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="clientName">Nome do Cliente</Label>
-              <Input
-                id="clientName"
-                value={formData.clientName}
-                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                placeholder="Nome do cliente"
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Entrega</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div>
-              <Label htmlFor="clientEmail">Email do Cliente</Label>
-              <Input
-                id="clientEmail"
-                type="email"
-                value={formData.clientEmail}
-                onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                placeholder="cliente@exemplo.com"
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="budget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Orçamento (R$)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      placeholder="Ex: 50000.00"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div>
-              <Label htmlFor="startDate">Data de Início</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditing ? 'Salvar alterações' : 'Criar Projeto'}
+              </Button>
             </div>
-
-            <div>
-              <Label htmlFor="endDate">Data de Entrega</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <Label htmlFor="budget">Orçamento (R$)</Label>
-              <Input
-                id="budget"
-                type="number"
-                step="0.01"
-                value={formData.budget}
-                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                placeholder="Ex: 50000.00"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={createProjectMutation.isPending}
-            >
-              {project ? 'Atualizar' : 'Criar'} Projeto
-            </Button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
