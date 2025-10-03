@@ -767,14 +767,16 @@ function ProjectDetailsDrawer({ open, onOpenChange, project }: ProjectDetailsDra
                   <div className="space-y-3">
                     <Label className="text-xs uppercase text-slate-400">Responsável</Label>
                     <Select
-                      value={formState.managerUserId}
-                      onValueChange={(value) => setFormState(prev => ({ ...prev, managerUserId: value }))}
+                      value={formState.managerUserId ? formState.managerUserId : "none"}
+                      onValueChange={(value) =>
+                        setFormState(prev => ({ ...prev, managerUserId: value === "none" ? "" : value }))
+                      }
                     >
                       <SelectTrigger className="border-slate-800 bg-slate-900/60 text-slate-100">
                         <SelectValue placeholder="Selecione o responsável" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Não definido</SelectItem>
+                        <SelectItem value="none">Não definido</SelectItem>
                         {users.map(user => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.firstName || user.lastName
